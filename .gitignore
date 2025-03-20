@@ -56,14 +56,10 @@ htmlcov/
 # Jupyter Notebook
 .ipynb_checkpoints
 
-# macOS
-.DS_Store
-
-# Uploads
-uploads/
-
 # Node
 node_modules/
+/.pnp
+.pnp.js
 /build
 .env.local
 .env.development.local
@@ -74,4 +70,11 @@ yarn-debug.log*
 yarn-error.log*
 
 # OS
-Thumbs.db 
+.DS_Store
+Thumbs.db
+
+# Uploads
+uploads/
+
+# Examples
+examples/
