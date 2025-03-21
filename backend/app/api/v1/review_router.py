@@ -6,9 +6,8 @@ from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.auth.dependencies import get_current_user
-from app.auth.jwt_codec import JWTPayload
-from app.core.dependencies import CurrentSession, get_db
+from app.auth.dependencies import CurrentAdmin, CurrentUser
+from app.core.dependencies import get_db
 from app.dtos.review import (
     ReviewCreateRequest,
     ReviewResponse,
@@ -39,9 +38,7 @@ async def list_reviews(session: AsyncSession = Depends(get_db)) -> List[Review]:
 
 
 @router.get("/stats", response_model=ReviewStats)
-async def get_review_stats(
-    session: AsyncSession = CurrentSession,
-) -> ReviewStats:
+async def get_review_stats(session: AsyncSession = Depends(get_db)) -> ReviewStats:
     # Get all visible reviews
     result = await session.execute(select(Review).where(Review.is_visible))
     reviews = result.scalars().all()
@@ -66,10 +63,7 @@ async def get_review_stats(
 
 
 @router.get("/{review_id}", response_model=ReviewResponse)
-async def get_review(
-    review_id: UUID,
-    session: AsyncSession = CurrentSession,
-) -> Review:
+async def get_review(review_id: UUID, session: AsyncSession = Depends(get_db)) -> Review:
     result = await session.execute(select(Review).where(Review.id == review_id))
     review = result.scalar_one_or_none()
 
@@ -85,9 +79,9 @@ async def get_review(
 @router.post("", response_model=ReviewResponse, status_code=status.HTTP_201_CREATED)
 async def create_review(
     review: ReviewCreateRequest,
+    current_user: CurrentUser,
     images: list[UploadFile] | None = None,
     session: AsyncSession = Depends(get_db),
-    current_user: JWTPayload = Depends(get_current_user),
 ) -> Review:
     # TODO: Handle image uploads
     new_review = Review(
@@ -108,12 +102,12 @@ async def create_review(
     return new_review
 
 
-@router.patch("/{review_id}", response_model=ReviewResponse)
+@router.put("/{review_id}", response_model=ReviewResponse)
 async def update_review(
     review_id: UUID,
     review_update: ReviewUpdateRequest,
+    _: CurrentAdmin,
     session: AsyncSession = Depends(get_db),
-    current_user: JWTPayload = Depends(get_current_user),
 ) -> Review:
     result = await session.execute(select(Review).where(Review.id == review_id))
     review = result.scalar_one_or_none()
@@ -136,7 +130,9 @@ async def update_review(
 
 @router.delete("/{review_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_review(
-    review_id: UUID, session: AsyncSession = Depends(get_db), current_user: JWTPayload = Depends(get_current_user)
+    review_id: UUID,
+    _: CurrentAdmin,
+    session: AsyncSession = Depends(get_db),
 ) -> None:
     result = await session.execute(select(Review).where(Review.id == review_id))
     review = result.scalar_one_or_none()

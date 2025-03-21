@@ -5,8 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException, UploadFile, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.auth.dependencies import get_current_user
-from app.auth.jwt_codec import JWTPayload
+from app.auth.dependencies import CurrentAdmin
 from app.core.dependencies import get_db
 from app.dtos.portfolio import PortfolioCreateRequest, PortfolioResponse, PortfolioUpdateRequest
 from app.log.route import LoggedRoute
@@ -45,8 +44,8 @@ async def create_portfolio(
     portfolio: PortfolioCreateRequest,
     image: UploadFile,
     thumbnail: UploadFile,
+    _: CurrentAdmin,  # Admin only
     session: AsyncSession = Depends(get_db),
-    current_user: JWTPayload = Depends(get_current_user),
 ) -> Portfolio:
     # TODO: Handle file uploads
     new_portfolio = Portfolio(
@@ -68,8 +67,8 @@ async def create_portfolio(
 async def update_portfolio(
     portfolio_id: UUID,
     portfolio_update: PortfolioUpdateRequest,
+    _: CurrentAdmin,  # Admin only
     session: AsyncSession = Depends(get_db),
-    current_user: JWTPayload = Depends(get_current_user),
 ) -> Portfolio:
     result = await session.execute(select(Portfolio).where(Portfolio.id == portfolio_id))
     portfolio = result.scalar_one_or_none()
@@ -92,7 +91,9 @@ async def update_portfolio(
 
 @router.delete("/{portfolio_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_portfolio(
-    portfolio_id: UUID, session: AsyncSession = Depends(get_db), current_user: JWTPayload = Depends(get_current_user)
+    portfolio_id: UUID,
+    _: CurrentAdmin,
+    session: AsyncSession = Depends(get_db),
 ) -> None:
     result = await session.execute(select(Portfolio).where(Portfolio.id == portfolio_id))
     portfolio = result.scalar_one_or_none()
