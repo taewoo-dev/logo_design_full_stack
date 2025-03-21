@@ -2,8 +2,12 @@ from uuid import UUID
 
 from pydantic import BaseModel
 
+from app.dtos.frozen_config import FROZEN_CONFIG
+
 
 class PortfolioResponse(BaseModel):
+    model_config = FROZEN_CONFIG
+
     id: UUID
     title: str
     description: str
