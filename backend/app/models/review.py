@@ -1,4 +1,4 @@
-from sqlalchemy import String, Text, Integer
+from sqlalchemy import Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.models.base import Base, TimestampMixin, UUIDMixin
@@ -40,12 +40,12 @@ class Review(Base, UUIDMixin, TimestampMixin):
         nullable=False,
         default=True,
     )
-    
+
     @property
     def images(self) -> list[str]:
         """이미지 URL 목록을 반환합니다."""
         return self.image_urls.split(",") if self.image_urls else []
-    
+
     @images.setter
     def images(self, urls: list[str]) -> None:
         """이미지 URL 목록을 설정합니다."""

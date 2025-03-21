@@ -1,41 +1,38 @@
 import asyncio
-from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
-from sqlalchemy.orm import sessionmaker
 
-from app.auth.jwt_codec import UserRole
+from sqlalchemy import text
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+
 from app.auth.password_hasher import PasswordHasher
 from app.models.user import User
-from app.core.configs import settings
 
 # Admin user details
 ADMIN_EMAIL = "admin@example.com"
 ADMIN_PASSWORD = "admin1234"
-ADMIN_NAME = "관리자"
+ADMIN_NAME = "Admin"
+
+DATABASE_URL = "mysql+asyncmy://root:password@localhost:3307/logo_design_db"
 
 
-async def create_admin():
-    # Create engine
-    engine = create_async_engine(settings.database_url)
-    async_session = sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
+async def create_admin() -> None:
+    engine = create_async_engine(DATABASE_URL)
+    async_session = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
 
     async with async_session() as session:
-        # Check if admin already exists
-        admin = await session.get(User, ADMIN_EMAIL)
-        if admin:
-            print(f"Admin user '{ADMIN_EMAIL}' already exists.")
-            return
+        # Check if admin user already exists
+        result = await session.execute(text("SELECT * FROM users WHERE email = :email"), {"email": ADMIN_EMAIL})
+        existing_user = result.first()
 
-        # Create admin user
-        admin = User(
-            email=ADMIN_EMAIL,
-            hashed_password=PasswordHasher.hash_password(ADMIN_PASSWORD),
-            name=ADMIN_NAME,
-            role=UserRole.ADMIN,
-        )
-        session.add(admin)
-        await session.commit()
-        print(f"Admin user '{ADMIN_EMAIL}' created successfully.")
+        if existing_user is None:
+            # Create new admin user
+            hashed_password = PasswordHasher.hash_password(ADMIN_PASSWORD)
+            new_admin = User(email=ADMIN_EMAIL, hashed_password=hashed_password, name=ADMIN_NAME, is_admin=True)
+            session.add(new_admin)
+            await session.commit()
+            print("Admin user created successfully")
+        else:
+            print("Admin user already exists")
 
 
 if __name__ == "__main__":
-    asyncio.run(create_admin()) 
+    asyncio.run(create_admin())

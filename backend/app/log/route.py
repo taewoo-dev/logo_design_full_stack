@@ -1,43 +1,32 @@
-from typing import Callable
 import logging
+from typing import Any, Callable, TypeVar
+
 from fastapi import Request, Response
 from fastapi.routing import APIRoute
-import json
 
 logger = logging.getLogger(__name__)
 
+T = TypeVar("T")
+
+
 class LoggedRoute(APIRoute):
-    def get_route_handler(self) -> Callable:
+    def get_route_handler(self) -> Callable[[Request], Any]:
         original_route_handler = super().get_route_handler()
 
-        async def route_handler(request: Request) -> Response:
-            # Request logging
+        async def custom_route_handler(request: Request) -> Response:
+            # Log request
             body = await request.body()
-            try:
-                body_str = body.decode()
-            except UnicodeDecodeError:
-                body_str = "<binary>"
+            if body:
+                body_str = body.decode() if isinstance(body, bytes) else str(body)
+                logger.info(f"Request body: {body_str}")
+            else:
+                logger.info("No request body")
 
-            logger.info(
-                f"Request: {request.method} {request.url}\n"
-                f"Headers: {dict(request.headers)}\n"
-                f"Body: {body_str}"
-            )
+            # Execute handler
+            response: Response = await original_route_handler(request)
 
-            response = await original_route_handler(request)
-
-            # Response logging
-            try:
-                body = json.loads(response.body.decode())
-            except:
-                body = "<non-JSON response>"
-
-            logger.info(
-                f"Response: {response.status_code}\n"
-                f"Headers: {dict(response.headers)}\n"
-                f"Body: {body}"
-            )
-
+            # Log response
+            logger.info(f"Response status: {response.status_code}")
             return response
 
-        return route_handler
+        return custom_route_handler

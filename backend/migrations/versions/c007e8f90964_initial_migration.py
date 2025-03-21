@@ -1,16 +1,15 @@
 """Initial migration
 
 Revision ID: c007e8f90964
-Revises: 
-Create Date: 2025-03-20 18:10:48.772406
+Revises:
+Create Date: 2024-03-19 16:42:42.123456
 
 """
 
 from typing import Sequence, Union
 
-from alembic import op
 import sqlalchemy as sa
-
+from alembic import op
 
 # revision identifiers, used by Alembic.
 revision: str = "c007e8f90964"
@@ -46,9 +45,7 @@ def upgrade() -> None:
         ),
         sa.PrimaryKeyConstraint("id"),
     )
-    op.create_index(
-        op.f("ix_portfolios_category"), "portfolios", ["category"], unique=False
-    )
+    op.create_index(op.f("ix_portfolios_category"), "portfolios", ["category"], unique=False)
     op.create_table(
         "reviews",
         sa.Column("name", sa.String(length=50), nullable=False),

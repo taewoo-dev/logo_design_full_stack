@@ -5,7 +5,6 @@ from app.api.v1.auth_router import router as auth_router
 from app.api.v1.health_router import router as health_router
 from app.api.v1.portfolio_router import router as portfolio_router
 from app.api.v1.review_router import router as review_router
-
 from app.log import initialize_log
 
 app = FastAPI(
