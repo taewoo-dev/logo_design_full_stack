@@ -1,5 +1,5 @@
 from sqlalchemy import String
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.auth.jwt_codec import UserRole
 from app.models.base import Base, TimestampMixin, UUIDMixin
@@ -27,3 +27,6 @@ class User(Base, UUIDMixin, TimestampMixin):
         nullable=False,
         default=UserRole.USER,
     )
+
+    # Relationships
+    orders = relationship("Order", back_populates="user", cascade="all, delete-orphan")

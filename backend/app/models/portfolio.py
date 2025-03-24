@@ -1,7 +1,22 @@
-from sqlalchemy import String, Text
+from enum import Enum
+
+from sqlalchemy import Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.models.base import Base, TimestampMixin, UUIDMixin
+
+
+class PortfolioCategory(str, Enum):
+    LOGO = "logo"
+    BRANDING = "branding"
+    PACKAGING = "packaging"
+    ILLUSTRATION = "illustration"
+    OTHER = "other"
+
+
+class PortfolioVisibility(str, Enum):
+    PUBLIC = "public"
+    PRIVATE = "private"
 
 
 class Portfolio(Base, UUIDMixin, TimestampMixin):
@@ -15,7 +30,7 @@ class Portfolio(Base, UUIDMixin, TimestampMixin):
         Text,
         nullable=False,
     )
-    category: Mapped[str] = mapped_column(
+    category: Mapped[PortfolioCategory] = mapped_column(
         String(50),
         nullable=False,
         index=True,
@@ -28,11 +43,13 @@ class Portfolio(Base, UUIDMixin, TimestampMixin):
         String(255),
         nullable=False,
     )
-    order: Mapped[int] = mapped_column(
+    display_order: Mapped[int] = mapped_column(
+        Integer,
         nullable=False,
         default=0,
     )
-    is_visible: Mapped[bool] = mapped_column(
+    visibility: Mapped[PortfolioVisibility] = mapped_column(
+        String(20),
         nullable=False,
-        default=True,
+        default=PortfolioVisibility.PUBLIC,
     )

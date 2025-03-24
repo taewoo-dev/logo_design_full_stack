@@ -8,6 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.dependencies import CurrentAdmin, CurrentUser
 from app.core.dependencies import get_db
+from app.core.utils.file import save_upload_file
 from app.dtos.review import (
     ReviewCreateRequest,
     ReviewResponse,
@@ -83,7 +84,13 @@ async def create_review(
     images: list[UploadFile] | None = None,
     session: AsyncSession = Depends(get_db),
 ) -> Review:
-    # TODO: Handle image uploads
+    # Handle image uploads
+    image_urls = []
+    if images:
+        for image in images:
+            image_url = await save_upload_file(image, subdir="reviews")
+            image_urls.append(image_url)
+
     new_review = Review(
         name=review.name,
         rating=review.rating,
@@ -92,7 +99,7 @@ async def create_review(
         order_amount=review.order_amount,
         working_days=review.working_days,
         is_visible=review.is_visible,
-        image_urls="",  # Temporary
+        image_urls=",".join(image_urls) if image_urls else "",
     )
 
     session.add(new_review)
@@ -107,6 +114,7 @@ async def update_review(
     review_id: UUID,
     review_update: ReviewUpdateRequest,
     _: CurrentAdmin,
+    images: list[UploadFile] | None = None,
     session: AsyncSession = Depends(get_db),
 ) -> Review:
     result = await session.execute(select(Review).where(Review.id == review_id))
@@ -121,6 +129,14 @@ async def update_review(
     # Update fields
     for field, value in review_update.model_dump(exclude_unset=True).items():
         setattr(review, field, value)
+
+    # Handle image uploads
+    if images:
+        image_urls = []
+        for image in images:
+            image_url = await save_upload_file(image, subdir="reviews")
+            image_urls.append(image_url)
+        review.image_urls = ",".join(image_urls)
 
     await session.commit()
     await session.refresh(review)

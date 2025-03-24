@@ -1,18 +1,18 @@
+from datetime import datetime
 from uuid import UUID
 
 from pydantic import BaseModel
 
+from app.models.portfolio import PortfolioCategory, PortfolioVisibility
+
 
 class PortfolioResponse(BaseModel):
-
     id: UUID
     title: str
     description: str
-    category: str
+    category: PortfolioCategory
     image_url: str
-    thumbnail_url: str
-    order: int
-    is_visible: bool
-
-    class Config:
-        from_attributes = True
+    display_order: int
+    visibility: PortfolioVisibility
+    created_at: datetime
+    updated_at: datetime

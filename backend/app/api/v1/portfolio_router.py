@@ -1,32 +1,68 @@
-from typing import List
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, status
-from sqlalchemy import select
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile, status
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.dependencies import CurrentAdmin
 from app.core.dependencies import get_db
-from app.dtos.portfolio import PortfolioCreateRequest, PortfolioResponse, PortfolioUpdateRequest
+from app.core.utils.file import save_upload_file
+from app.core.utils.uuid_formatter import get_uuid_id
+from app.dtos.common.paginated_response import PaginatedResponse
+from app.dtos.portfolio.portfolio_response import PortfolioResponse
 from app.log.route import LoggedRoute
-from app.models.portfolio import Portfolio
+from app.models.portfolio import Portfolio, PortfolioCategory, PortfolioVisibility
 
 router = APIRouter(
     prefix="/portfolios",
-    tags=["Portfolio"],
+    tags=["Portfolios"],
     route_class=LoggedRoute,
 )
 
 
-@router.get("", response_model=List[PortfolioResponse])
-async def list_portfolios(session: AsyncSession = Depends(get_db)) -> List[Portfolio]:
-    result = await session.execute(select(Portfolio))
+@router.get("", response_model=PaginatedResponse[PortfolioResponse])
+async def list_portfolios(
+    page: int = Query(1, ge=1, description="페이지 번호"),
+    per_page: int = Query(12, ge=1, le=100, description="페이지당 항목 수"),
+    session: AsyncSession = Depends(get_db),
+) -> PaginatedResponse[PortfolioResponse]:
+    total_count = await session.scalar(select(func.count()).select_from(Portfolio))
+    if total_count is None:
+        total_count = 0
+
+    offset = (page - 1) * per_page
+    result = await session.execute(
+        select(Portfolio)
+        .order_by(Portfolio.display_order.asc(), Portfolio.created_at.desc())
+        .offset(offset)
+        .limit(per_page)
+    )
     portfolios = result.scalars().all()
-    return list(portfolios)
+
+    portfolio_responses = [
+        PortfolioResponse(
+            id=portfolio.id,
+            title=portfolio.title,
+            description=portfolio.description,
+            category=portfolio.category,
+            image_url=portfolio.image_url,
+            display_order=portfolio.display_order,
+            visibility=portfolio.visibility,
+            created_at=portfolio.created_at,
+            updated_at=portfolio.updated_at,
+        )
+        for portfolio in portfolios
+    ]
+
+    total_pages = (total_count + per_page - 1) // per_page
+
+    return PaginatedResponse(
+        items=portfolio_responses, total=total_count, page=page, per_page=per_page, total_pages=total_pages
+    )
 
 
 @router.get("/{portfolio_id}", response_model=PortfolioResponse)
-async def get_portfolio(portfolio_id: UUID, session: AsyncSession = Depends(get_db)) -> Portfolio:
+async def get_portfolio(portfolio_id: UUID, session: AsyncSession = Depends(get_db)) -> PortfolioResponse:
     result = await session.execute(select(Portfolio).where(Portfolio.id == portfolio_id))
     portfolio = result.scalar_one_or_none()
 
@@ -36,40 +72,69 @@ async def get_portfolio(portfolio_id: UUID, session: AsyncSession = Depends(get_
             detail="Portfolio not found",
         )
 
-    return portfolio
+    return PortfolioResponse(
+        id=portfolio.id,
+        title=portfolio.title,
+        description=portfolio.description,
+        category=portfolio.category,
+        image_url=portfolio.image_url,
+        display_order=portfolio.display_order,
+        visibility=portfolio.visibility,
+        created_at=portfolio.created_at,
+        updated_at=portfolio.updated_at,
+    )
 
 
 @router.post("", response_model=PortfolioResponse, status_code=status.HTTP_201_CREATED)
 async def create_portfolio(
-    portfolio: PortfolioCreateRequest,
-    image: UploadFile,
-    thumbnail: UploadFile,
-    _: CurrentAdmin,  # Admin only
+    _: CurrentAdmin,
+    title: str = Form(...),
+    description: str = Form(...),
+    category: PortfolioCategory = Form(...),
+    display_order: int = Form(0),
+    visibility: PortfolioVisibility = Form(...),
+    image: UploadFile = File(...),
     session: AsyncSession = Depends(get_db),
-) -> Portfolio:
-    # TODO: Handle file uploads
+) -> PortfolioResponse:
+    image_url = await save_upload_file(image, subdir="portfolios")
+
     new_portfolio = Portfolio(
-        title=portfolio.title,
-        description=portfolio.description,
-        category=portfolio.category,
-        image_url="/temp/image.jpg",  # Temporary
-        thumbnail_url="/temp/thumb.jpg",  # Temporary
-        order=portfolio.order,
-        is_visible=portfolio.is_visible,
+        title=title,
+        description=description,
+        category=category,
+        display_order=display_order,
+        visibility=visibility,
+        image_url=image_url,
     )
     session.add(new_portfolio)
     await session.commit()
     await session.refresh(new_portfolio)
-    return new_portfolio
+
+    return PortfolioResponse(
+        id=new_portfolio.id,
+        title=new_portfolio.title,
+        description=new_portfolio.description,
+        category=new_portfolio.category,
+        image_url=new_portfolio.image_url,
+        display_order=new_portfolio.display_order,
+        visibility=new_portfolio.visibility,
+        created_at=new_portfolio.created_at,
+        updated_at=new_portfolio.updated_at,
+    )
 
 
-@router.put("/{portfolio_id}", response_model=PortfolioResponse)
+@router.put("/{uuid}", response_model=PortfolioResponse)
 async def update_portfolio(
-    portfolio_id: UUID,
-    portfolio_update: PortfolioUpdateRequest,
-    _: CurrentAdmin,  # Admin only
+    _: CurrentAdmin,
+    portfolio_id: str = Depends(get_uuid_id),
+    title: str | None = Form(None),
+    description: str | None = Form(None),
+    category: PortfolioCategory | None = Form(None),
+    display_order: int | None = Form(None),
+    visibility: PortfolioVisibility | None = Form(None),
+    image: UploadFile | None = File(None),
     session: AsyncSession = Depends(get_db),
-) -> Portfolio:
+) -> PortfolioResponse:
     result = await session.execute(select(Portfolio).where(Portfolio.id == portfolio_id))
     portfolio = result.scalar_one_or_none()
 
@@ -79,30 +144,58 @@ async def update_portfolio(
             detail="Portfolio not found",
         )
 
-    # Update fields
-    for field, value in portfolio_update.model_dump(exclude_unset=True).items():
-        setattr(portfolio, field, value)
+    if title is not None:
+        portfolio.title = title
+    if description is not None:
+        portfolio.description = description
+    if category is not None:
+        portfolio.category = category
+    if display_order is not None:
+        portfolio.display_order = display_order
+    if visibility is not None:
+        portfolio.visibility = visibility
+
+    # Update image if provided
+    if image:
+        image_url = await save_upload_file(image, subdir="portfolios")
+        portfolio.image_url = image_url
 
     await session.commit()
     await session.refresh(portfolio)
 
-    return portfolio
+    return PortfolioResponse(
+        id=portfolio.id,
+        title=portfolio.title,
+        description=portfolio.description,
+        category=portfolio.category,
+        image_url=portfolio.image_url,
+        display_order=portfolio.display_order,
+        visibility=portfolio.visibility,
+        created_at=portfolio.created_at,
+        updated_at=portfolio.updated_at,
+    )
 
 
-@router.delete("/{portfolio_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete("/{uuid}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_portfolio(
-    portfolio_id: UUID,
     _: CurrentAdmin,
+    portfolio_id: str = Depends(get_uuid_id),
     session: AsyncSession = Depends(get_db),
 ) -> None:
-    result = await session.execute(select(Portfolio).where(Portfolio.id == portfolio_id))
-    portfolio = result.scalar_one_or_none()
+    try:
+        result = await session.execute(select(Portfolio).where(Portfolio.id == portfolio_id))
+        portfolio = result.scalar_one_or_none()
 
-    if not portfolio:
+        if not portfolio:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Portfolio not found",
+            )
+
+        await session.delete(portfolio)
+        await session.commit()
+    except ValueError:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Portfolio not found",
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid portfolio ID format",
         )
-
-    await session.delete(portfolio)
-    await session.commit()
