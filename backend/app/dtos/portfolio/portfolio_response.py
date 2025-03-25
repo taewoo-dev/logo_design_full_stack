@@ -1,9 +1,8 @@
 from datetime import datetime
 from uuid import UUID
-
 from pydantic import BaseModel
 
-from app.models.portfolio import PortfolioCategory, PortfolioVisibility
+from app.models.portfolio_enums import PortfolioCategory, PortfolioVisibility
 
 
 class PortfolioResponse(BaseModel):
