@@ -90,9 +90,9 @@ async def create_portfolio(
     _: CurrentAdmin,
     title: str = Form(...),
     description: str = Form(...),
-    category: PortfolioCategory = Form(...),
+    category: str = Form(...),
     display_order: int = Form(0),
-    visibility: PortfolioVisibility = Form(...),
+    visibility: str = Form(...),
     image: UploadFile = File(...),
     session: AsyncSession = Depends(get_db),
 ) -> PortfolioResponse:
@@ -101,9 +101,9 @@ async def create_portfolio(
     new_portfolio = Portfolio(
         title=title,
         description=description,
-        category=category,
+        category=PortfolioCategory(category),
         display_order=display_order,
-        visibility=visibility,
+        visibility=PortfolioVisibility(visibility),
         image_url=image_url,
     )
     session.add(new_portfolio)

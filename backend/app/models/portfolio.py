@@ -7,16 +7,16 @@ from app.models.base import Base, TimestampMixin, UUIDMixin
 
 
 class PortfolioCategory(str, Enum):
-    LOGO = "logo"
-    BRANDING = "branding"
-    PACKAGING = "packaging"
-    ILLUSTRATION = "illustration"
-    OTHER = "other"
+    LOGO = "LOGO"
+    BRANDING = "BRANDING"
+    PACKAGING = "PACKAGING"
+    ILLUSTRATION = "ILLUSTRATION"
+    OTHER = "OTHER"
 
 
 class PortfolioVisibility(str, Enum):
-    PUBLIC = "public"
-    PRIVATE = "private"
+    PUBLIC = "PUBLIC"
+    PRIVATE = "PRIVATE"
 
 
 class Portfolio(Base, UUIDMixin, TimestampMixin):
@@ -36,10 +36,6 @@ class Portfolio(Base, UUIDMixin, TimestampMixin):
         index=True,
     )
     image_url: Mapped[str] = mapped_column(
-        String(255),
-        nullable=False,
-    )
-    thumbnail_url: Mapped[str] = mapped_column(
         String(255),
         nullable=False,
     )

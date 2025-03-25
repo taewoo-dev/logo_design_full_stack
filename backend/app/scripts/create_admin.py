@@ -26,7 +26,7 @@ async def create_admin() -> None:
         if existing_user is None:
             # Create new admin user
             hashed_password = PasswordHasher.hash_password(ADMIN_PASSWORD)
-            new_admin = User(email=ADMIN_EMAIL, hashed_password=hashed_password, name=ADMIN_NAME, is_admin=True)
+            new_admin = User(email=ADMIN_EMAIL, hashed_password=hashed_password, name=ADMIN_NAME, role="ADMIN")
             session.add(new_admin)
             await session.commit()
             print("Admin user created successfully")

@@ -1,6 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import ORJSONResponse
+from fastapi.staticfiles import StaticFiles
 
 from app.api.v1.auth_router import router as auth_router
 from app.api.v1.health_router import router as health_router
@@ -25,12 +26,15 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# static path 설정
+app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
+
 initialize_log()
 
 # Health check
-app.include_router(health_router)
+app.include_router(health_router, prefix="/api/v1")
 
 # API routes
-app.include_router(auth_router)
-app.include_router(portfolio_router)
-app.include_router(review_router)
+app.include_router(auth_router, prefix="/api/v1")
+app.include_router(portfolio_router, prefix="/api/v1")
+app.include_router(review_router, prefix="/api/v1")
