@@ -17,18 +17,20 @@ const PortfolioLightbox: React.FC<PortfolioLightboxProps> = ({ portfolio, onClos
         className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-90"
         onClick={onClose}
       >
-        <div className="relative max-w-4xl w-full mx-4">
+        <div className="relative max-w-2xl w-full mx-4">
           <motion.div
             initial={{ scale: 0.9, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
             exit={{ scale: 0.9, opacity: 0 }}
             className="bg-white rounded-lg overflow-hidden"
           >
-            <img
-              src={portfolio.image_url}
-              alt={portfolio.title}
-              className="w-full h-auto object-contain"
-            />
+            <div className="max-h-[70vh] overflow-hidden">
+              <img
+                src={portfolio.image_url}
+                alt={portfolio.title}
+                className="w-full h-full object-contain"
+              />
+            </div>
             <div className="p-6">
               <h3 className="text-2xl font-bold mb-2">{portfolio.title}</h3>
               <p className="text-gray-600">{portfolio.description}</p>

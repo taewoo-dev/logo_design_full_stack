@@ -2,9 +2,9 @@ import client from './client';
 import type { Portfolio, PortfolioCreateRequest, PortfolioUpdateRequest, PaginatedResponse } from '../types/portfolio';
 import { PortfolioCategory, PortfolioVisibility } from '../types';
 
-export const getPortfolios = async (page: number = 1, size: number = 10): Promise<PaginatedResponse<Portfolio>> => {
+export const getPortfolios = async (page: number = 1, per_page: number = 10): Promise<PaginatedResponse<Portfolio>> => {
   const response = await client.get<PaginatedResponse<Portfolio>>('/api/v1/portfolios', {
-    params: { page, size }
+    params: { page, per_page }
   });
   return response.data;
 };
