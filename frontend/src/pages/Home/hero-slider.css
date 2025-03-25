@@ -1,0 +1,35 @@
+.hero-slider .slick-dots {
+  bottom: 40px;
+  position: absolute;
+  width: 100%;
+  z-index: 20;
+}
+
+.hero-slider .slick-dots li button:before {
+  color: white;
+  font-size: 12px;
+  opacity: 0.5;
+}
+
+.hero-slider .slick-dots li.slick-active button:before {
+  opacity: 1;
+}
+
+.hero-slider .slick-prev,
+.hero-slider .slick-next {
+  z-index: 20;
+}
+
+.hero-slider {
+  overflow: hidden;
+  width: 100%;
+}
+
+.hero-slider .slick-slider {
+  width: 100%;
+  overflow: hidden;
+}
+
+.hero-slider .slick-list {
+  overflow: hidden;
+} 
