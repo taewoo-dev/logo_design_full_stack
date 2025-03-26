@@ -63,6 +63,35 @@ class Column(Base, UUIDMixin, TimestampMixin):
         return result.scalar_one_or_none()
 
     @classmethod
+    async def get_prev_next_columns(
+        cls, session: AsyncSession, column_id: str
+    ) -> tuple[Optional["Column"], Optional["Column"]]:
+        # 현재 컬럼 가져오기
+        current_column = await cls.get_by_id(session, column_id)
+        if not current_column:
+            return None, None
+
+        # 이전글 가져오기 (created_at이 현재 글보다 이전인 것 중 가장 최근)
+        prev_query = (
+            select(cls)
+            .where(cls.created_at < current_column.created_at, cls.status == ColumnStatus.PUBLISHED)
+            .order_by(cls.created_at.desc())
+        )
+        prev_result = await session.execute(prev_query)
+        prev_column = prev_result.scalars().first()
+
+        # 다음글 가져오기 (created_at이 현재 글보다 이후인 것 중 가장 오래된)
+        next_query = (
+            select(cls)
+            .where(cls.created_at > current_column.created_at, cls.status == ColumnStatus.PUBLISHED)
+            .order_by(cls.created_at.asc())
+        )
+        next_result = await session.execute(next_query)
+        next_column = next_result.scalars().first()
+
+        return prev_column, next_column
+
+    @classmethod
     async def create_one(
         cls,
         session: AsyncSession,

@@ -2,7 +2,7 @@ from fastapi import HTTPException, UploadFile, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.utils.file import save_upload_file
-from app.dtos.column.column_response import ColumnResponse
+from app.dtos.column.column_response import ColumnNavigation, ColumnResponse
 from app.dtos.common.paginated_response import PaginatedResponse
 from app.models.column import Column
 from app.models.column_enums import ColumnStatus
@@ -23,6 +23,9 @@ async def service_get_column(session: AsyncSession, column_id: str) -> ColumnRes
             detail="Column not found",
         )
 
+    # 이전글/다음글 가져오기
+    prev_column, next_column = await Column.get_prev_next_columns(session, column_id)
+
     return ColumnResponse(
         id=column.id,
         title=column.title,
@@ -33,6 +36,24 @@ async def service_get_column(session: AsyncSession, column_id: str) -> ColumnRes
         created_at=column.created_at,
         updated_at=column.updated_at,
         category=column.category,
+        prev_column=(
+            ColumnNavigation(
+                id=prev_column.id,
+                title=prev_column.title,
+                thumbnail_url=prev_column.thumbnail_url,
+            )
+            if prev_column
+            else None
+        ),
+        next_column=(
+            ColumnNavigation(
+                id=next_column.id,
+                title=next_column.title,
+                thumbnail_url=next_column.thumbnail_url,
+            )
+            if next_column
+            else None
+        ),
     )
 
 
