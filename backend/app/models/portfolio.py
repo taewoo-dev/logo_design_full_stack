@@ -13,11 +13,6 @@ from app.models.portfolio_enums import PortfolioCategory, PortfolioVisibility
 class Portfolio(Base, UUIDMixin, TimestampMixin):
     __tablename__ = "portfolios"
 
-    portfolio_id: Mapped[int] = mapped_column(
-        Integer,
-        primary_key=True,
-        index=True,
-    )
     title: Mapped[str] = mapped_column(
         String(100),
         nullable=False,
@@ -95,7 +90,7 @@ class Portfolio(Base, UUIDMixin, TimestampMixin):
     async def get_by_id(
         cls,
         session: AsyncSession,
-        portfolio_id: UUID
+        portfolio_id: str
     ) -> Optional["Portfolio"]:
         result = await session.execute(select(cls).where(cls.id == portfolio_id))
         return result.scalar_one_or_none()

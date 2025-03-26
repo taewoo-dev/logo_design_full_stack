@@ -1,4 +1,4 @@
-from uuid import UUID
+
 from fastapi import HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.utils.file import save_upload_file
@@ -16,7 +16,7 @@ async def service_get_portfolios(
 
 async def service_get_portfolio(
     session: AsyncSession,
-    portfolio_id: UUID
+    portfolio_id: str
 ) -> PortfolioResponse:
     portfolio = await Portfolio.get_by_id(session, portfolio_id)
 
@@ -73,7 +73,7 @@ async def service_create_portfolio(
 
 async def service_update_portfolio(
     session: AsyncSession,
-    portfolio_id: UUID,
+    portfolio_id: str,
     title: str | None = None,
     description: str | None = None,
     category: str | None = None,
@@ -119,7 +119,7 @@ async def service_update_portfolio(
 
 async def service_delete_portfolio(
     session: AsyncSession,
-    portfolio_id: UUID
+    portfolio_id: str
 ) -> None:
     portfolio = await Portfolio.get_by_id(session, portfolio_id)
 

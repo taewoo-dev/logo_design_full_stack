@@ -1,9 +1,10 @@
-from uuid import UUID
+
 from fastapi import APIRouter, Depends, File, Form,  Query, UploadFile, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.dependencies import CurrentAdmin
 from app.core.dependencies import get_db
+from app.core.utils.uuid_formatter import get_uuid_id
 from app.dtos.common.paginated_response import PaginatedResponse
 from app.dtos.portfolio.portfolio_response import PortfolioResponse
 from app.log.route import LoggedRoute
@@ -31,9 +32,9 @@ async def api_get_portfolios(
     return await service_get_portfolios(session, page, per_page)
 
 
-@router.get("/{portfolio_id}", response_model=PortfolioResponse)
+@router.get("/{uuid}", response_model=PortfolioResponse)
 async def api_get_portfolio(
-    portfolio_id: UUID,
+    portfolio_id : str = Depends(get_uuid_id),
     session: AsyncSession = Depends(get_db)
 ) -> PortfolioResponse:
     return await service_get_portfolio(session, portfolio_id)
@@ -63,8 +64,8 @@ async def api_create_portfolio(
 
 @router.put("/{uuid}", response_model=PortfolioResponse)
 async def api_update_portfolio(
-    uuid: UUID,
     _: CurrentAdmin,
+    portfolio_id : str = Depends(get_uuid_id),
     title: str | None = Form(None),
     description: str | None = Form(None),
     category: str | None = Form(None),
@@ -75,7 +76,7 @@ async def api_update_portfolio(
 ) -> PortfolioResponse:
     return await service_update_portfolio(
         session=session,
-        portfolio_id=uuid,
+        portfolio_id=portfolio_id,
         title=title,
         description=description,
         category=category,
@@ -87,8 +88,8 @@ async def api_update_portfolio(
 
 @router.delete("/{uuid}", status_code=status.HTTP_204_NO_CONTENT)
 async def api_delete_portfolio(
-    uuid: UUID,
     _: CurrentAdmin,
+    portfolio_id : str = Depends(get_uuid_id),
     session: AsyncSession = Depends(get_db),
 ) -> None:
-    await service_delete_portfolio(session, uuid)
+    await service_delete_portfolio(session, portfolio_id)
