@@ -14,3 +14,4 @@ class ColumnResponse(BaseModel):
     view_count: int
     created_at: datetime
     updated_at: datetime
+    category: str | None

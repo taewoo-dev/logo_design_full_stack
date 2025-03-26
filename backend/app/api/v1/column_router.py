@@ -28,7 +28,7 @@ router = APIRouter(
 async def api_get_columns(
     page: int = Query(1, ge=1, description="페이지 번호"),
     per_page: int = Query(12, ge=1, le=100, description="페이지당 항목 수"),
-    status: ColumnStatus = Query(ColumnStatus.DRAFT, description="칼럼 상태"),
+    status: ColumnStatus | None = Query(None, description="칼럼 상태"),
     session: AsyncSession = Depends(get_db),
 ) -> PaginatedResponse[ColumnResponse]:
     return await service_get_columns(session, page, per_page, status)
@@ -47,7 +47,8 @@ async def api_create_column(
     title: str = Form(...),
     content: str = Form(...),
     status: str = Form("DRAFT"),
-    thumbnail: UploadFile | None = File(None),
+    category: str = Form(...),
+    thumbnail: UploadFile = File(...),
     session: AsyncSession = Depends(get_db),
 ) -> ColumnResponse:
     return await service_create_column(
@@ -55,6 +56,7 @@ async def api_create_column(
         title=title,
         content=content,
         column_status=ColumnStatus(status),
+        category=category,
         thumbnail=thumbnail,
     )
 
@@ -67,6 +69,7 @@ async def api_update_column(
     content: str | None = Form(None),
     status: str | None = Form(None),
     thumbnail_image: UploadFile | None = File(None),
+    category: str | None = Form(None),
     session: AsyncSession = Depends(get_db),
 ) -> ColumnResponse:
     return await service_update_column(
@@ -76,6 +79,7 @@ async def api_update_column(
         content=content,
         column_status=status,
         thumbnail_image=thumbnail_image,
+        category=category,
     )
 
 

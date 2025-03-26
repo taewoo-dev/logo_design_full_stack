@@ -4,6 +4,7 @@ from fastapi.responses import ORJSONResponse
 from fastapi.staticfiles import StaticFiles
 
 from app.api.v1.auth_router import router as auth_router
+from app.api.v1.column_router import router as column_router
 from app.api.v1.health_router import router as health_router
 from app.api.v1.portfolio_router import router as portfolio_router
 from app.api.v1.review_router import router as review_router
@@ -37,4 +38,5 @@ app.include_router(health_router, prefix="/api/v1")
 # API routes
 app.include_router(auth_router, prefix="/api/v1")
 app.include_router(portfolio_router, prefix="/api/v1")
+app.include_router(column_router, prefix="/api/v1")
 app.include_router(review_router, prefix="/api/v1")

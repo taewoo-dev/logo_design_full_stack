@@ -32,6 +32,7 @@ async def service_get_column(session: AsyncSession, column_id: str) -> ColumnRes
         view_count=column.view_count,
         created_at=column.created_at,
         updated_at=column.updated_at,
+        category=column.category,
     )
 
 
@@ -40,11 +41,10 @@ async def service_create_column(
     title: str,
     content: str,
     column_status: ColumnStatus,
-    thumbnail: UploadFile | None = None,
+    category: str,
+    thumbnail: UploadFile,
 ) -> ColumnResponse:
-    thumbnail_url = None
-    if thumbnail:
-        thumbnail_url = await save_upload_file(thumbnail, subdir="columns")
+    thumbnail_url = await save_upload_file(thumbnail, subdir="columns")
 
     column = await Column.create_one(
         session=session,
@@ -52,6 +52,7 @@ async def service_create_column(
         content=content,
         status=column_status,
         thumbnail_url=thumbnail_url,
+        category=category,
     )
 
     return ColumnResponse(
@@ -63,6 +64,7 @@ async def service_create_column(
         view_count=column.view_count,
         created_at=column.created_at,
         updated_at=column.updated_at,
+        category=column.category,
     )
 
 
@@ -73,6 +75,7 @@ async def service_update_column(
     content: str | None = None,
     column_status: str | None = None,
     thumbnail_image: UploadFile | None = None,
+    category: str | None = None,
 ) -> ColumnResponse:
     column = await Column.get_by_id(session, column_id)
 
@@ -85,7 +88,12 @@ async def service_update_column(
     thumbnail_url = await save_upload_file(thumbnail_image, subdir="columns") if thumbnail_image else None
 
     await column.update(
-        session=session, title=title, content=content, status=column_status, thumbnail_url=thumbnail_url
+        session=session,
+        title=title,
+        content=content,
+        status=column_status,
+        thumbnail_url=thumbnail_url,
+        category=category,
     )
 
     return ColumnResponse(
@@ -97,6 +105,7 @@ async def service_update_column(
         view_count=column.view_count,
         created_at=column.created_at,
         updated_at=column.updated_at,
+        category=column.category,
     )
 
 

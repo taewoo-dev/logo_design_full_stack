@@ -18,6 +18,7 @@ class Column(Base, UUIDMixin, TimestampMixin):
     status: Mapped[ColumnStatus] = mapped_column(String(20), nullable=False, default=ColumnStatus.DRAFT)
     thumbnail_url: Mapped[str | None] = mapped_column(String(255), nullable=True)
     view_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    category: Mapped[str | None] = mapped_column(String(50), nullable=True)
 
     @classmethod
     async def get_all_with_pagination(
@@ -45,6 +46,7 @@ class Column(Base, UUIDMixin, TimestampMixin):
                 view_count=column.view_count,
                 created_at=column.created_at,
                 updated_at=column.updated_at,
+                category=column.category,
             )
             for column in columns
         ]
@@ -68,12 +70,14 @@ class Column(Base, UUIDMixin, TimestampMixin):
         content: str,
         status: ColumnStatus,
         thumbnail_url: str | None = None,
+        category: str | None = None,
     ) -> "Column":
         column = cls(
             title=title,
             content=content,
             status=status,
             thumbnail_url=thumbnail_url,
+            category=category,
         )
         session.add(column)
         await session.flush()
@@ -87,6 +91,7 @@ class Column(Base, UUIDMixin, TimestampMixin):
         content: str | None = None,
         status: str | None = None,
         thumbnail_url: str | None = None,
+        category: str | None = None,
     ) -> None:
         if title is not None:
             self.title = title
@@ -96,6 +101,8 @@ class Column(Base, UUIDMixin, TimestampMixin):
             self.status = ColumnStatus(status)
         if thumbnail_url is not None:
             self.thumbnail_url = thumbnail_url
+        if category is not None:
+            self.category = category
 
         await session.flush()
         await session.refresh(self)
