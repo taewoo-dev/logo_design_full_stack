@@ -1,36 +1,56 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Button, Input, Select } from '../../components/common';
 import ReactQuill from 'react-quill';
 import type { UnprivilegedEditor } from 'react-quill';
+import MDEditor from '@uiw/react-md-editor';
 import 'react-quill/dist/quill.snow.css';
+import { getColumn, createColumn, updateColumn } from '../../api/column';
+import type { Column } from '../../types/column';
+import { ColumnStatus } from '../../types/column';
 
-interface ColumnData {
-  id: string;
-  title: string;
-  category: string;
-  content: string;
-  author: string;
-  publishedAt: string;
-  thumbnailUrl: string;
-}
+type EditorType = 'rich' | 'markdown';
 
 const ColumnEditor: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const isEditMode = !!id;
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [editorType, setEditorType] = useState<EditorType>('rich');
 
-  const [formData, setFormData] = useState<Partial<ColumnData>>({
+  const [formData, setFormData] = useState<Partial<Column>>({
     title: '',
-    category: '',
     content: '',
-    author: '',
-    publishedAt: new Date().toISOString().split('T')[0],
-    thumbnailUrl: '',
+    status: ColumnStatus.DRAFT,
+    thumbnail_url: null,
+    category: '',
   });
 
   const [previewUrl, setPreviewUrl] = useState<string>('');
+  const [thumbnailFile, setThumbnailFile] = useState<File | null>(null);
+
+  useEffect(() => {
+    if (isEditMode) {
+      fetchColumn();
+    }
+  }, [isEditMode]);
+
+  const fetchColumn = async () => {
+    try {
+      if (!id) return;
+      const column = await getColumn(id);
+      setFormData(column);
+      if (column.thumbnail_url) {
+        setPreviewUrl(column.thumbnail_url);
+      }
+      // 컨텐츠가 마크다운 형식인지 확인
+      if (column.content.startsWith('#') || column.content.includes('```')) {
+        setEditorType('markdown');
+      }
+    } catch (error) {
+      console.error('컬럼 조회 실패:', error);
+    }
+  };
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -39,7 +59,7 @@ const ColumnEditor: React.FC = () => {
       reader.onloadend = () => {
         const result = reader.result as string;
         setPreviewUrl(result);
-        setFormData({ ...formData, thumbnailUrl: result });
+        setThumbnailFile(file);
       };
       reader.readAsDataURL(file);
     }
@@ -49,19 +69,27 @@ const ColumnEditor: React.FC = () => {
     fileInputRef.current?.click();
   };
 
-  const categories = [
-    '로고 디자인',
-    '브랜딩',
-    '디자인 트렌드',
-    '마케팅',
-    '기타',
-  ];
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      // TODO: API 연동
-      console.log('저장할 데이터:', formData);
+      if (isEditMode && id) {
+        await updateColumn({
+          id,
+          title: formData.title!,
+          content: formData.content!,
+          status: formData.status!,
+          thumbnail: thumbnailFile || undefined,
+          category: formData.category!,
+        });
+      } else {
+        await createColumn({
+          title: formData.title!,
+          content: formData.content!,
+          status: formData.status!,
+          thumbnail: thumbnailFile || undefined,
+          category: formData.category!,
+        });
+      }
       navigate('/admin/columns');
     } catch (error) {
       console.error('저장 실패:', error);
@@ -70,6 +98,24 @@ const ColumnEditor: React.FC = () => {
 
   const handleCancel = () => {
     navigate('/admin/columns');
+  };
+
+  const handleEditorTypeChange = (type: EditorType) => {
+    if (type === editorType) return;
+    
+    if (type === 'markdown') {
+      // HTML을 마크다운으로 변환
+      const tempDiv = document.createElement('div');
+      tempDiv.innerHTML = formData.content || '';
+      const markdown = tempDiv.innerText;
+      setFormData({ ...formData, content: markdown });
+    } else {
+      // 마크다운을 HTML로 변환
+      const tempDiv = document.createElement('div');
+      tempDiv.innerHTML = formData.content || '';
+      setFormData({ ...formData, content: tempDiv.innerHTML });
+    }
+    setEditorType(type);
   };
 
   return (
@@ -111,27 +157,22 @@ const ColumnEditor: React.FC = () => {
                   placeholder="칼럼 제목을 입력하세요"
                 />
 
-                <Select
+                <Input
                   label="카테고리"
                   value={formData.category}
-                  onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setFormData({ ...formData, category: e.target.value })}
-                  options={categories.map(cat => ({ value: cat, label: cat }))}
+                  onChange={(e) => setFormData({ ...formData, category: e.target.value })}
                   required
+                  placeholder="칼럼 카테고리를 입력하세요"
                 />
 
-                <Input
-                  label="작성자"
-                  value={formData.author}
-                  onChange={(e) => setFormData({ ...formData, author: e.target.value })}
-                  required
-                  placeholder="작성자 이름을 입력하세요"
-                />
-
-                <Input
-                  label="발행일"
-                  type="date"
-                  value={formData.publishedAt}
-                  onChange={(e) => setFormData({ ...formData, publishedAt: e.target.value })}
+                <Select
+                  label="상태"
+                  value={formData.status}
+                  onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setFormData({ ...formData, status: e.target.value as ColumnStatus })}
+                  options={[
+                    { value: ColumnStatus.DRAFT, label: '임시저장' },
+                    { value: ColumnStatus.PUBLISHED, label: '발행' }
+                  ]}
                   required
                 />
               </div>
@@ -183,25 +224,60 @@ const ColumnEditor: React.FC = () => {
             </div>
 
             <div className="space-y-4">
-              <label className="block text-sm font-medium text-gray-700">
-                내용
-              </label>
+              <div className="flex items-center justify-between">
+                <label className="block text-sm font-medium text-gray-700">
+                  내용
+                </label>
+                <div className="flex space-x-2">
+                  <button
+                    type="button"
+                    onClick={() => handleEditorTypeChange('rich')}
+                    className={`px-3 py-1 rounded text-sm font-medium ${
+                      editorType === 'rich'
+                        ? 'bg-green-600 text-white'
+                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                    }`}
+                  >
+                    리치 텍스트
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleEditorTypeChange('markdown')}
+                    className={`px-3 py-1 rounded text-sm font-medium ${
+                      editorType === 'markdown'
+                        ? 'bg-green-600 text-white'
+                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                    }`}
+                  >
+                    마크다운
+                  </button>
+                </div>
+              </div>
               <div className="bg-white border border-gray-300 rounded-lg overflow-hidden">
-                <ReactQuill
-                  value={formData.content}
-                  onChange={(content) => setFormData({ ...formData, content })}
-                  modules={{
-                    toolbar: [
-                      [{ 'header': [1, 2, 3, false] }],
-                      ['bold', 'italic', 'underline', 'strike'],
-                      [{ 'list': 'ordered'}, { 'list': 'bullet' }],
-                      ['link', 'image'],
-                      ['clean']
-                    ]
-                  }}
-                  className="h-96"
-                  placeholder="칼럼 내용을 입력하세요..."
-                />
+                {editorType === 'rich' ? (
+                  <ReactQuill
+                    value={formData.content}
+                    onChange={(content) => setFormData({ ...formData, content })}
+                    modules={{
+                      toolbar: [
+                        [{ 'header': [1, 2, 3, false] }],
+                        ['bold', 'italic', 'underline', 'strike'],
+                        [{ 'list': 'ordered'}, { 'list': 'bullet' }],
+                        ['link', 'image'],
+                        ['clean']
+                      ]
+                    }}
+                    className="h-96"
+                    placeholder="칼럼 내용을 입력하세요..."
+                  />
+                ) : (
+                  <div data-color-mode="light" className="h-96">
+                    <MDEditor
+                      value={formData.content || ''}
+                      onChange={(value: string | undefined) => setFormData({ ...formData, content: value || '' })}
+                    />
+                  </div>
+                )}
               </div>
             </div>
           </form>
