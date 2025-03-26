@@ -1,5 +1,5 @@
 from app.models.base import Base, TimestampMixin, UUIDMixin
-from app.models.column import Column, ColumnStatus
+from app.models.column import Column
 from app.models.order import Order, OrderStatus, PackageType
 from app.models.payment import Payment, PaymentMethod, PaymentStatus
 from app.models.portfolio import Portfolio
@@ -18,7 +18,6 @@ __all__ = [
     "PaymentStatus",
     "PaymentMethod",
     "Column",
-    "ColumnStatus",
     "Review",
     "Portfolio",
 ]

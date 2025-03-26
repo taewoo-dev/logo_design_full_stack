@@ -1,5 +1,6 @@
 from enum import Enum
 
+
 class PortfolioCategory(str, Enum):
     LOGO = "LOGO"
     BRANDING = "BRANDING"
@@ -10,4 +11,4 @@ class PortfolioCategory(str, Enum):
 
 class PortfolioVisibility(str, Enum):
     PUBLIC = "PUBLIC"
-    PRIVATE = "PRIVATE" 
+    PRIVATE = "PRIVATE"

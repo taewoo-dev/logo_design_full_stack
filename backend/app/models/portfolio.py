@@ -1,12 +1,12 @@
-from sqlalchemy import Integer, String, Text, func, select
-from sqlalchemy.orm import Mapped, mapped_column
-from sqlalchemy.ext.asyncio import AsyncSession
-from typing import List, Optional
-from uuid import UUID
+from typing import Optional
 
-from app.models.base import Base, TimestampMixin, UUIDMixin
+from sqlalchemy import Integer, String, Text, func, select
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import Mapped, mapped_column
+
 from app.dtos.common.paginated_response import PaginatedResponse
 from app.dtos.portfolio.portfolio_response import PortfolioResponse
+from app.models.base import Base, TimestampMixin, UUIDMixin
 from app.models.portfolio_enums import PortfolioCategory, PortfolioVisibility
 
 
@@ -43,10 +43,7 @@ class Portfolio(Base, UUIDMixin, TimestampMixin):
 
     @classmethod
     async def get_all_with_pagination(
-        cls,
-        session: AsyncSession,
-        page: int = 1,
-        per_page: int = 12
+        cls, session: AsyncSession, page: int = 1, per_page: int = 12
     ) -> PaginatedResponse[PortfolioResponse]:
         total_count = await session.scalar(select(func.count()).select_from(cls))
         if total_count is None:
@@ -54,10 +51,7 @@ class Portfolio(Base, UUIDMixin, TimestampMixin):
 
         offset = (page - 1) * per_page
         result = await session.execute(
-            select(cls)
-            .order_by(cls.display_order.asc(), cls.created_at.desc())
-            .offset(offset)
-            .limit(per_page)
+            select(cls).order_by(cls.display_order.asc(), cls.created_at.desc()).offset(offset).limit(per_page)
         )
         portfolios = result.scalars().all()
 
@@ -79,19 +73,11 @@ class Portfolio(Base, UUIDMixin, TimestampMixin):
         total_pages = (total_count + per_page - 1) // per_page
 
         return PaginatedResponse(
-            items=portfolio_responses,
-            total=total_count,
-            page=page,
-            per_page=per_page,
-            total_pages=total_pages
+            items=portfolio_responses, total=total_count, page=page, per_page=per_page, total_pages=total_pages
         )
 
     @classmethod
-    async def get_by_id(
-        cls,
-        session: AsyncSession,
-        portfolio_id: str
-    ) -> Optional["Portfolio"]:
+    async def get_by_id(cls, session: AsyncSession, portfolio_id: str) -> Optional["Portfolio"]:
         result = await session.execute(select(cls).where(cls.id == portfolio_id))
         return result.scalar_one_or_none()
 
@@ -104,7 +90,7 @@ class Portfolio(Base, UUIDMixin, TimestampMixin):
         category: PortfolioCategory,
         display_order: int,
         visibility: PortfolioVisibility,
-        image_url: str
+        image_url: str,
     ) -> "Portfolio":
         portfolio = cls(
             title=title,
@@ -124,21 +110,21 @@ class Portfolio(Base, UUIDMixin, TimestampMixin):
         session: AsyncSession,
         title: str | None = None,
         description: str | None = None,
-        category: PortfolioCategory | None = None,
+        category: str | None = None,
         display_order: int | None = None,
-        visibility: PortfolioVisibility | None = None,
-        image_url: str | None = None
+        visibility: str | None = None,
+        image_url: str | None = None,
     ) -> None:
         if title is not None:
             self.title = title
         if description is not None:
             self.description = description
         if category is not None:
-            self.category = category
+            self.category = PortfolioCategory(category)
         if display_order is not None:
             self.display_order = display_order
         if visibility is not None:
-            self.visibility = visibility
+            self.visibility = PortfolioVisibility(visibility)
         if image_url is not None:
             self.image_url = image_url
 
