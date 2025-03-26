@@ -5,6 +5,7 @@ import Header from '../../components/layout/Header';
 import Footer from '../../components/layout/Footer';
 import { getColumns } from '../../api/column';
 import type { Column } from '../../types/column';
+import { ColumnStatus } from '../../types/column';
 
 const ColumnsPage = () => {
   const [columns, setColumns] = useState<Column[]>([]);
@@ -21,7 +22,7 @@ const ColumnsPage = () => {
     try {
       setLoading(true);
       setError(null);
-      const response = await getColumns();
+      const response = await getColumns(1, 12, ColumnStatus.PUBLISHED);
       setColumns(response.items);
     } catch (error) {
       console.error('컬럼 목록 조회 실패:', error);

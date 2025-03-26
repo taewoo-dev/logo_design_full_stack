@@ -23,6 +23,12 @@ async def service_get_column(session: AsyncSession, column_id: str) -> ColumnRes
             detail="Column not found",
         )
 
+    if column.status != ColumnStatus.PUBLISHED:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Column not found",
+        )
+
     # 이전글/다음글 가져오기
     prev_column, next_column = await Column.get_prev_next_columns(session, column_id)
 
