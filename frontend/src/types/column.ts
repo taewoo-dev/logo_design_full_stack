@@ -3,6 +3,12 @@ export enum ColumnStatus {
   PUBLISHED = 'PUBLISHED'
 }
 
+export interface ColumnNavigation {
+  id: string;
+  title: string;
+  thumbnail_url: string | null;
+}
+
 export interface Column {
   id: string;
   title: string;
@@ -13,6 +19,8 @@ export interface Column {
   view_count: number;
   created_at: string;
   updated_at: string;
+  prev_column: ColumnNavigation | null;
+  next_column: ColumnNavigation | null;
 }
 
 export interface ColumnCreateRequest {

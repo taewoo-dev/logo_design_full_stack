@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import Header from '../../components/layout/Header';
 import Footer from '../../components/layout/Footer';
@@ -8,6 +8,7 @@ import type { Column } from '../../types/column';
 
 const ColumnDetailPage = () => {
   const { id } = useParams();
+  const navigate = useNavigate();
   const [column, setColumn] = useState<Column | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -90,17 +91,59 @@ const ColumnDetailPage = () => {
               dangerouslySetInnerHTML={{ __html: column.content }}
             />
 
-            {/* 목록으로 돌아가기 버튼 */}
+            {/* 이전글/다음글 네비게이션 */}
             <div className="mt-16 border-t border-gray-200 pt-8">
-              <Link 
-                to="/columns"
-                className="inline-flex items-center text-green-600 hover:text-green-800"
+              <div className="grid grid-cols-2 gap-4">
+                {/* 이전글 */}
+                {column.prev_column && (
+                  <Link 
+                    to={`/columns/${column.prev_column.id}`}
+                    className="group flex items-center space-x-4 p-4 bg-white rounded-lg shadow-sm hover:shadow-md transition-shadow"
+                  >
+                    <div className="flex-shrink-0">
+                      <svg className="w-5 h-5 text-gray-400 group-hover:text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                      </svg>
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm text-gray-500 mb-1">이전글</p>
+                      <p className="text-base font-medium text-gray-900 truncate">{column.prev_column.title}</p>
+                    </div>
+                  </Link>
+                )}
+                {!column.prev_column && <div />}
+
+                {/* 다음글 */}
+                {column.next_column && (
+                  <Link 
+                    to={`/columns/${column.next_column.id}`}
+                    className="group flex items-center space-x-4 p-4 bg-white rounded-lg shadow-sm hover:shadow-md transition-shadow"
+                  >
+                    <div className="flex-1 min-w-0 text-right">
+                      <p className="text-sm text-gray-500 mb-1">다음글</p>
+                      <p className="text-base font-medium text-gray-900 truncate">{column.next_column.title}</p>
+                    </div>
+                    <div className="flex-shrink-0">
+                      <svg className="w-5 h-5 text-gray-400 group-hover:text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                      </svg>
+                    </div>
+                  </Link>
+                )}
+                {!column.next_column && <div />}
+              </div>
+            </div>
+
+            {/* 목록으로 돌아가기 버튼 */}
+            <div className="mt-8 text-center">
+              <motion.button
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                className="bg-green-800 text-white px-12 py-5 text-lg rounded-full shadow-xl hover:shadow-2xl transition-all duration-300"
+                onClick={() => navigate('/columns')}
               >
-                <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-                </svg>
                 목록으로 돌아가기
-              </Link>
+              </motion.button>
             </div>
           </motion.article>
         </div>
