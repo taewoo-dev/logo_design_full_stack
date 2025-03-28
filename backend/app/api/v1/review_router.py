@@ -1,28 +1,24 @@
-from typing import List
-from uuid import UUID
+from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, status
-from pydantic import BaseModel
-from sqlalchemy import select
+from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.auth.dependencies import CurrentAdmin, CurrentUser
+from app.auth.dependencies import CurrentAdmin
 from app.core.dependencies import get_db
-from app.core.utils.file import save_upload_file
-from app.dtos.review import (
-    ReviewCreateRequest,
-    ReviewResponse,
-    ReviewUpdateRequest,
-)
+from app.core.utils.uuid_formatter import get_uuid_id
+from app.dtos.common.paginated_response import PaginatedResponse
+from app.dtos.review import ReviewStatsResponse
+from app.dtos.review.review_query import ReviewQueryParams
+from app.dtos.review.review_response import ReviewResponse
 from app.log.route import LoggedRoute
-from app.models.review import Review
-
-
-class ReviewStats(BaseModel):
-    total_reviews: int
-    average_rating: float
-    rating_distribution: dict[int, int]  # rating -> count
-
+from app.services.review_service import (
+    service_create_review,
+    service_delete_review,
+    service_get_review_by_id,
+    service_get_review_stats,
+    service_get_reviews,
+    service_update_review,
+)
 
 router = APIRouter(
     prefix="/reviews",
@@ -31,133 +27,100 @@ router = APIRouter(
 )
 
 
-@router.get("", response_model=List[ReviewResponse])
-async def list_reviews(session: AsyncSession = Depends(get_db)) -> List[Review]:
-    result = await session.execute(select(Review))
-    reviews = result.scalars().all()
-    return list(reviews)
+@router.get("", response_model=PaginatedResponse[ReviewResponse])
+async def api_get_reviews(
+    query_params: ReviewQueryParams = Depends(),
+    session: AsyncSession = Depends(get_db),
+) -> PaginatedResponse[ReviewResponse]:
+    """리뷰 목록을 조회합니다."""
+    return await service_get_reviews(session=session, query_params=query_params)
 
 
-@router.get("/stats", response_model=ReviewStats)
-async def get_review_stats(session: AsyncSession = Depends(get_db)) -> ReviewStats:
-    # Get all visible reviews
-    result = await session.execute(select(Review).where(Review.is_visible))
-    reviews = result.scalars().all()
-
-    if not reviews:
-        return ReviewStats(
-            total_reviews=0,
-            average_rating=0.0,
-            rating_distribution={1: 0, 2: 0, 3: 0, 4: 0, 5: 0},
-        )
-
-    # Calculate stats
-    total = len(reviews)
-    avg_rating = sum(r.rating for r in reviews) / total
-    distribution = {i: sum(1 for r in reviews if r.rating == i) for i in range(1, 6)}
-
-    return ReviewStats(
-        total_reviews=total,
-        average_rating=round(avg_rating, 1),
-        rating_distribution=distribution,
-    )
+@router.get("/stats", response_model=ReviewStatsResponse)
+async def api_get_review_stats(session: AsyncSession = Depends(get_db)) -> ReviewStatsResponse:
+    """리뷰 통계를 조회합니다."""
+    return await service_get_review_stats(session=session)
 
 
-@router.get("/{review_id}", response_model=ReviewResponse)
-async def get_review(review_id: UUID, session: AsyncSession = Depends(get_db)) -> Review:
-    result = await session.execute(select(Review).where(Review.id == review_id))
-    review = result.scalar_one_or_none()
-
+@router.get("/{uuid}", response_model=ReviewResponse)
+async def api_get_review(
+    review_id: str = Depends(get_uuid_id),
+    session: AsyncSession = Depends(get_db),
+) -> ReviewResponse:
+    """리뷰 상세 정보를 조회합니다."""
+    review = await service_get_review_by_id(session=session, review_id=review_id)
     if not review:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Review not found",
-        )
-
+        raise HTTPException(status_code=404, detail="Review not found")
     return review
 
 
-@router.post("", response_model=ReviewResponse, status_code=status.HTTP_201_CREATED)
-async def create_review(
-    review: ReviewCreateRequest,
-    current_user: CurrentUser,
-    images: list[UploadFile] | None = None,
-    session: AsyncSession = Depends(get_db),
-) -> Review:
-    # Handle image uploads
-    image_urls = []
-    if images:
-        for image in images:
-            image_url = await save_upload_file(image, subdir="reviews")
-            image_urls.append(image_url)
-
-    new_review = Review(
-        name=review.name,
-        rating=review.rating,
-        content=review.content,
-        order_type=review.order_type,
-        order_amount=review.order_amount,
-        working_days=review.working_days,
-        is_visible=review.is_visible,
-        image_urls=",".join(image_urls) if image_urls else "",
-    )
-
-    session.add(new_review)
-    await session.commit()
-    await session.refresh(new_review)
-
-    return new_review
-
-
-@router.put("/{review_id}", response_model=ReviewResponse)
-async def update_review(
-    review_id: UUID,
-    review_update: ReviewUpdateRequest,
+@router.post("", response_model=ReviewResponse)
+async def api_create_review(
     _: CurrentAdmin,
-    images: list[UploadFile] | None = None,
+    name: Annotated[str, Form()],
+    rating: Annotated[int, Form()],
+    content: Annotated[str, Form()],
+    order_type: Annotated[str, Form()],
+    order_amount: Annotated[str, Form()],
+    working_days: Annotated[int, Form()],
+    is_visible: Annotated[bool, Form()] = True,
+    images: list[UploadFile] = File(None),
     session: AsyncSession = Depends(get_db),
-) -> Review:
-    result = await session.execute(select(Review).where(Review.id == review_id))
-    review = result.scalar_one_or_none()
-
-    if not review:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Review not found",
-        )
-
-    # Update fields
-    for field, value in review_update.model_dump(exclude_unset=True).items():
-        setattr(review, field, value)
-
-    # Handle image uploads
+) -> ReviewResponse:
+    """새로운 리뷰를 생성합니다."""
+    # TODO: 이미지 업로드 처리
+    image_urls = None
     if images:
-        image_urls = []
-        for image in images:
-            image_url = await save_upload_file(image, subdir="reviews")
-            image_urls.append(image_url)
-        review.image_urls = ",".join(image_urls)
+        image_urls = ",".join([f"/uploads/{img.filename}" for img in images])
 
-    await session.commit()
-    await session.refresh(review)
-
+    review = await service_create_review(
+        session=session,
+        name=name,
+        rating=rating,
+        content=content,
+        order_type=order_type,
+        order_amount=order_amount,
+        working_days=working_days,
+        is_visible=is_visible,
+        image_urls=image_urls,
+    )
     return review
 
 
-@router.delete("/{review_id}", status_code=status.HTTP_204_NO_CONTENT)
-async def delete_review(
-    review_id: UUID,
+@router.put("/{uuid}", response_model=ReviewResponse)
+async def api_update_review(
     _: CurrentAdmin,
+    review_id: str = Depends(get_uuid_id),
+    name: Annotated[str | None, Form()] = None,
+    rating: Annotated[int | None, Form()] = None,
+    content: Annotated[str | None, Form()] = None,
+    order_type: Annotated[str | None, Form()] = None,
+    order_amount: Annotated[str | None, Form()] = None,
+    working_days: Annotated[int | None, Form()] = None,
+    is_visible: Annotated[bool | None, Form()] = None,
+    images: list[UploadFile] = File(None),
+    session: AsyncSession = Depends(get_db),
+) -> ReviewResponse:
+    """리뷰를 수정합니다."""
+    return await service_update_review(
+        session=session,
+        review_id=review_id,
+        name=name,
+        rating=rating,
+        content=content,
+        order_type=order_type,
+        order_amount=order_amount,
+        working_days=working_days,
+        is_visible=is_visible,
+        images=images,
+    )
+
+
+@router.delete("/{uuid}")
+async def api_delete_review(
+    _: CurrentAdmin,
+    review_id: str = Depends(get_uuid_id),
     session: AsyncSession = Depends(get_db),
 ) -> None:
-    result = await session.execute(select(Review).where(Review.id == review_id))
-    review = result.scalar_one_or_none()
-
-    if not review:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Review not found",
-        )
-
-    await session.delete(review)
-    await session.commit()
+    """리뷰를 삭제합니다."""
+    return await service_delete_review(session=session, review_id=review_id)
