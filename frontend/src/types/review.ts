@@ -1,30 +1,32 @@
 export interface Review {
-  id: number;
-  companyName: string;
+  id: string;  // UUID
+  name: string;
   rating: number;
   content: string;
-  imageUrl: string;
-  isVisible: boolean;
-  createdAt: string;
-  updatedAt: string;
+  order_type: string;
+  order_amount: string;
+  working_days: number;
+  images: string[];
+  is_visible: boolean;
+  created_at: string;
+  updated_at: string;
 }
 
-export interface ReviewCreateRequest {
-  companyName: string;
-  rating: number;
-  content: string;
-  imageUrl: string;
-  isVisible: boolean;
+export interface ReviewStatsResponse {
+  total_reviews: number;
+  average_rating: number;
+  rating_distribution: {
+    [key: number]: number;
+  };
 }
 
-export interface ReviewUpdateRequest extends Partial<ReviewCreateRequest> {
-  id: number;
-}
+export type ReviewCreateRequest = FormData;
+export type ReviewUpdateRequest = FormData;
 
 export interface ReviewStats {
-  totalCount: number;
-  averageRating: number;
-  ratingDistribution: {
+  total_reviews: number;
+  average_rating: number;
+  rating_distribution: {
     [key: number]: number;
   };
 } 

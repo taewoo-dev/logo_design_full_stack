@@ -1,18 +1,20 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Button, Input, Select } from '../../components/common';
 import ReactQuill from 'react-quill';
 import 'react-quill/dist/quill.snow.css';
+import { getReview, createReview, updateReview } from '../../api/review';
+import type { Review, ReviewCreateRequest, ReviewUpdateRequest } from '../../types/review';
 
-interface ReviewData {
-  id: string;
-  clientName: string;
-  companyName: string;
+interface ReviewFormData {
+  name: string;
   rating: number;
   content: string;
-  images: string[];
-  createdAt: string;
-  isPublished: boolean;
+  order_type: string;
+  order_amount: string;
+  working_days: number;
+  is_visible: boolean;
+  images: (File | string)[];
 }
 
 const ReviewEditor: React.FC = () => {
@@ -20,24 +22,80 @@ const ReviewEditor: React.FC = () => {
   const navigate = useNavigate();
   const isEditMode = !!id;
 
-  const [formData, setFormData] = useState<Partial<ReviewData>>({
-    clientName: '',
-    companyName: '',
+  const [formData, setFormData] = useState<Partial<ReviewFormData>>({
+    name: '',
     rating: 5,
     content: '',
+    order_type: '',
+    order_amount: '',
+    working_days: 0,
+    is_visible: true,
     images: [],
-    createdAt: new Date().toISOString().split('T')[0],
-    isPublished: false,
   });
+
+  useEffect(() => {
+    if (isEditMode) {
+      fetchReview();
+    }
+  }, [id]);
+
+  const fetchReview = async () => {
+    try {
+      if (!id) return;
+      const review = await getReview(id);
+      setFormData({
+        name: review.name,
+        rating: review.rating,
+        content: review.content,
+        order_type: review.order_type,
+        order_amount: review.order_amount,
+        working_days: review.working_days,
+        images: review.images,
+        is_visible: review.is_visible,
+      });
+    } catch (error) {
+      console.error('리뷰 조회 실패:', error);
+      alert('리뷰 정보를 불러오는데 실패했습니다.');
+      navigate('/admin/reviews');
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      // TODO: API 연동
-      console.log('저장할 데이터:', formData);
+      const submitData = new FormData();
+      
+      // 텍스트 데이터 추가
+      submitData.append('name', formData.name || '');
+      submitData.append('rating', (formData.rating || 5).toString());
+      submitData.append('content', formData.content || '');
+      submitData.append('order_type', formData.order_type || '');
+      submitData.append('order_amount', formData.order_amount || '');
+      submitData.append('working_days', (formData.working_days || 0).toString());
+      submitData.append('is_visible', formData.is_visible ? 'true' : 'false');
+
+      // 이미지 파일 추가
+      if (formData.images) {
+        formData.images.forEach((image: File | string) => {
+          if (typeof image === 'string' && image.startsWith('data:')) {
+            // 이미 base64로 변환된 이미지인 경우
+            submitData.append('images', image);
+          } else if (image instanceof File) {
+            // File 객체인 경우
+            submitData.append('images', image);
+          }
+        });
+      }
+
+      if (isEditMode && id) {
+        await updateReview(id, submitData);
+      } else {
+        await createReview(submitData);
+      }
       navigate('/admin/reviews');
     } catch (error) {
       console.error('저장 실패:', error);
+      alert('저장에 실패했습니다.');
     }
   };
 
@@ -49,11 +107,22 @@ const ReviewEditor: React.FC = () => {
     const files = e.target.files;
     if (!files) return;
 
-    const newImages = Array.from(files).map(file => URL.createObjectURL(file));
+    const newImages = Array.from(files).map(file => {
+      // File 객체를 그대로 저장
+      return file;
+    });
+
     setFormData(prev => ({
       ...prev,
       images: [...(prev.images || []), ...newImages]
     }));
+  };
+
+  const getImageUrl = (image: File | string): string => {
+    if (typeof image === 'string') {
+      return image;
+    }
+    return URL.createObjectURL(image);
   };
 
   const handleRemoveImage = (index: number) => {
@@ -62,6 +131,17 @@ const ReviewEditor: React.FC = () => {
       images: prev.images?.filter((_, i) => i !== index) || []
     }));
   };
+
+  // 컴포넌트가 언마운트될 때 URL 객체 정리
+  useEffect(() => {
+    return () => {
+      formData.images?.forEach(image => {
+        if (image instanceof File) {
+          URL.revokeObjectURL(getImageUrl(image));
+        }
+      });
+    };
+  }, []);
 
   return (
     <div className="min-h-screen bg-gray-50 py-8">
@@ -95,134 +175,100 @@ const ReviewEditor: React.FC = () => {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="space-y-4">
                 <Input
-                  label="고객명"
-                  value={formData.clientName}
-                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => setFormData({ ...formData, clientName: e.target.value })}
+                  label="이름"
+                  value={formData.name}
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => setFormData({ ...formData, name: e.target.value })}
                   required
-                  placeholder="고객님의 이름을 입력하세요"
                 />
-
+                <Select
+                  label="평점"
+                  value={formData.rating?.toString()}
+                  onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setFormData({ ...formData, rating: parseInt(e.target.value) })}
+                  options={[
+                    { value: '5', label: '5점' },
+                    { value: '4', label: '4점' },
+                    { value: '3', label: '3점' },
+                    { value: '2', label: '2점' },
+                    { value: '1', label: '1점' },
+                  ]}
+                  required
+                />
                 <Input
-                  label="회사명"
-                  value={formData.companyName}
-                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => setFormData({ ...formData, companyName: e.target.value })}
+                  label="주문 유형"
+                  value={formData.order_type}
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => setFormData({ ...formData, order_type: e.target.value })}
                   required
-                  placeholder="회사명을 입력하세요"
                 />
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    평점
-                  </label>
-                  <div className="flex items-center space-x-2">
-                    {[1, 2, 3, 4, 5].map((star) => (
-                      <button
-                        key={star}
-                        type="button"
-                        onClick={() => setFormData({ ...formData, rating: star })}
-                        className={`text-2xl ${
-                          star <= (formData.rating || 0)
-                            ? 'text-yellow-400'
-                            : 'text-gray-300'
-                        }`}
-                      >
-                        ★
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
                 <Input
-                  label="작성일"
-                  type="date"
-                  value={formData.createdAt}
-                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => setFormData({ ...formData, createdAt: e.target.value })}
+                  label="주문 금액"
+                  value={formData.order_amount}
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => setFormData({ ...formData, order_amount: e.target.value })}
                   required
                 />
-
+                <Input
+                  label="작업일수"
+                  type="number"
+                  value={formData.working_days}
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => setFormData({ ...formData, working_days: parseInt(e.target.value) })}
+                  required
+                />
                 <div className="flex items-center">
                   <input
                     type="checkbox"
-                    id="isPublished"
-                    checked={formData.isPublished}
-                    onChange={(e) => setFormData({ ...formData, isPublished: e.target.checked })}
+                    id="is_visible"
+                    checked={formData.is_visible}
+                    onChange={(e) => setFormData({ ...formData, is_visible: e.target.checked })}
                     className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
                   />
-                  <label htmlFor="isPublished" className="ml-2 block text-sm text-gray-700">
-                    즉시 발행
+                  <label htmlFor="is_visible" className="ml-2 block text-sm text-gray-900">
+                    공개
                   </label>
                 </div>
               </div>
 
               <div className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    이미지 업로드
-                  </label>
-                  <div className="flex items-center space-x-4">
-                    <input
-                      type="file"
-                      onChange={handleImageChange}
-                      accept="image/*"
-                      multiple
-                      className="hidden"
-                      id="image-upload"
-                    />
-                    <label
-                      htmlFor="image-upload"
-                      className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 cursor-pointer"
-                    >
-                      이미지 선택
-                    </label>
-                  </div>
-                  <p className="mt-1 text-sm text-gray-500">권장 크기: 800x600px</p>
+                  <label className="block text-sm font-medium text-gray-700">내용</label>
+                  <ReactQuill
+                    value={formData.content}
+                    onChange={(content) => setFormData({ ...formData, content })}
+                    className="h-64 mb-12"
+                  />
                 </div>
 
-                {formData.images && formData.images.length > 0 && (
-                  <div className="grid grid-cols-2 gap-4">
-                    {formData.images.map((image, index) => (
-                      <div key={index} className="relative group">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">이미지</label>
+                  <input
+                    type="file"
+                    multiple
+                    accept="image/*"
+                    onChange={handleImageChange}
+                    className="mt-1 block w-full text-sm text-gray-500
+                      file:mr-4 file:py-2 file:px-4
+                      file:rounded-md file:border-0
+                      file:text-sm file:font-semibold
+                      file:bg-blue-50 file:text-blue-700
+                      hover:file:bg-blue-100"
+                  />
+                  <div className="mt-4 grid grid-cols-2 gap-4">
+                    {formData.images?.map((image, index) => (
+                      <div key={index} className="relative">
                         <img
-                          src={image}
+                          src={getImageUrl(image)}
                           alt={`리뷰 이미지 ${index + 1}`}
-                          className="w-full h-48 object-cover rounded-lg"
+                          className="w-full h-32 object-cover rounded-lg"
                         />
                         <button
                           type="button"
                           onClick={() => handleRemoveImage(index)}
-                          className="absolute top-2 right-2 p-1 bg-red-500 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                          className="absolute top-2 right-2 bg-red-500 text-white rounded-full p-1 hover:bg-red-600"
                         >
-                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                          </svg>
+                          ×
                         </button>
                       </div>
                     ))}
                   </div>
-                )}
-              </div>
-            </div>
-
-            <div className="space-y-4">
-              <label className="block text-sm font-medium text-gray-700">
-                리뷰 내용
-              </label>
-              <div className="bg-white border border-gray-300 rounded-lg overflow-hidden">
-                <ReactQuill
-                  value={formData.content}
-                  onChange={(content) => setFormData({ ...formData, content })}
-                  modules={{
-                    toolbar: [
-                      [{ 'header': [1, 2, 3, false] }],
-                      ['bold', 'italic', 'underline', 'strike'],
-                      [{ 'list': 'ordered'}, { 'list': 'bullet' }],
-                      ['link', 'image'],
-                      ['clean']
-                    ]
-                  }}
-                  className="h-96"
-                  placeholder="리뷰 내용을 입력하세요..."
-                />
+                </div>
               </div>
             </div>
           </form>

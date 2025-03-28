@@ -6,7 +6,8 @@ import ProtectedRoute from './components/auth/ProtectedRoute';
 import AdminLayout from './components/layout/AdminLayout';
 import Login from './pages/Admin/Login';
 import AdminPortfolio from './pages/Admin/AdminPortfolio';
-import AdminReviews from './pages/Admin/Reviews';
+import AdminReview from './pages/Admin/AdminReview';
+import ReviewEditor from './pages/Admin/ReviewEditor';
 import AdminColumn from './pages/Admin/AdminColumn';
 import ColumnEditor from './pages/Admin/ColumnEditor';
 import AdminDashboard from './pages/Admin/Dashboard';
@@ -35,8 +36,10 @@ const App: React.FC = () => {
               }
             >
               <Route index element={<AdminDashboard />} />
-              <Route path="portfolio" element={<AdminPortfolio />} />
-              <Route path="reviews" element={<AdminReviews />} />
+              <Route path="portfolios" element={<AdminPortfolio />} />
+              <Route path="reviews" element={<AdminReview />} />
+              <Route path="reviews/new" element={<ReviewEditor />} />
+              <Route path="reviews/:id/edit" element={<ReviewEditor />} />
               <Route path="columns" element={<AdminColumn />} />
               <Route path="columns/new" element={<ColumnEditor />} />
               <Route path="columns/:id/edit" element={<ColumnEditor />} />
