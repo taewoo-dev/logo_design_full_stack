@@ -1,10 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Button, Input, Select } from '../../components/common';
 import ReactQuill from 'react-quill';
 import 'react-quill/dist/quill.snow.css';
 import { getReview, createReview, updateReview } from '../../api/review';
-import type { Review, ReviewCreateRequest, ReviewUpdateRequest } from '../../types/review';
 
 interface ReviewFormData {
   name: string;
@@ -15,14 +14,16 @@ interface ReviewFormData {
   working_days: number;
   is_visible: boolean;
   images: (File | string)[];
+  use_rich_text: boolean;
 }
 
 const ReviewEditor: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const isEditMode = !!id;
-
-  const [formData, setFormData] = useState<Partial<ReviewFormData>>({
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [formData, setFormData] = useState<ReviewFormData>({
     name: '',
     rating: 5,
     content: '',
@@ -31,17 +32,13 @@ const ReviewEditor: React.FC = () => {
     working_days: 0,
     is_visible: true,
     images: [],
+    use_rich_text: false
   });
 
-  useEffect(() => {
-    if (isEditMode) {
-      fetchReview();
-    }
-  }, [id]);
-
-  const fetchReview = async () => {
+  const fetchReview = useCallback(async () => {
+    if (!id) return;
     try {
-      if (!id) return;
+      setLoading(true);
       const review = await getReview(id);
       setFormData({
         name: review.name,
@@ -50,29 +47,54 @@ const ReviewEditor: React.FC = () => {
         order_type: review.order_type,
         order_amount: review.order_amount,
         working_days: review.working_days,
-        images: review.images,
         is_visible: review.is_visible,
+        images: review.images,
+        use_rich_text: false
       });
-    } catch (error) {
-      console.error('리뷰 조회 실패:', error);
-      alert('리뷰 정보를 불러오는데 실패했습니다.');
-      navigate('/admin/reviews');
+    } catch (err) {
+      console.error('Error fetching review:', err);
+      setError('리뷰 정보를 불러오는데 실패했습니다.');
+    } finally {
+      setLoading(false);
     }
-  };
+  }, [id]);
+
+  useEffect(() => {
+    if (isEditMode) {
+      fetchReview();
+    }
+  }, [isEditMode, fetchReview]);
+
+  useEffect(() => {
+    // 이미지 미리보기 URL 생성
+    const imageUrls = formData.images.map(image => {
+      if (typeof image === 'string') return image;
+      return URL.createObjectURL(image);
+    });
+
+    // 컴포넌트 언마운트 시 URL 정리
+    return () => {
+      imageUrls.forEach(url => {
+        if (url.startsWith('blob:')) {
+          URL.revokeObjectURL(url);
+        }
+      });
+    };
+  }, [formData.images]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
       const submitData = new FormData();
       
-      // 텍스트 데이터 추가
-      submitData.append('name', formData.name || '');
-      submitData.append('rating', (formData.rating || 5).toString());
-      submitData.append('content', formData.content || '');
-      submitData.append('order_type', formData.order_type || '');
-      submitData.append('order_amount', formData.order_amount || '');
-      submitData.append('working_days', (formData.working_days || 0).toString());
-      submitData.append('is_visible', formData.is_visible ? 'true' : 'false');
+      // 텍스트 데이터 추가 (빈 값이 아닌 경우에만)
+      if (formData.name) submitData.append('name', formData.name);
+      if (formData.rating) submitData.append('rating', formData.rating.toString());
+      if (formData.content) submitData.append('content', formData.content);
+      if (formData.order_type) submitData.append('order_type', formData.order_type);
+      if (formData.order_amount) submitData.append('order_amount', formData.order_amount);
+      if (formData.working_days) submitData.append('working_days', formData.working_days.toString());
+      if (formData.is_visible !== undefined) submitData.append('is_visible', formData.is_visible.toString());
 
       // 이미지 파일 추가
       if (formData.images) {
@@ -132,17 +154,6 @@ const ReviewEditor: React.FC = () => {
     }));
   };
 
-  // 컴포넌트가 언마운트될 때 URL 객체 정리
-  useEffect(() => {
-    return () => {
-      formData.images?.forEach(image => {
-        if (image instanceof File) {
-          URL.revokeObjectURL(getImageUrl(image));
-        }
-      });
-    };
-  }, []);
-
   return (
     <div className="min-h-screen bg-gray-50 py-8">
       <div className="max-w-4xl mx-auto">
@@ -164,12 +175,19 @@ const ReviewEditor: React.FC = () => {
                   type="submit"
                   onClick={handleSubmit}
                   className="bg-blue-600 hover:bg-blue-700"
+                  disabled={loading}
                 >
-                  {isEditMode ? '수정' : '저장'}
+                  {loading ? '저장 중...' : (isEditMode ? '수정' : '저장')}
                 </Button>
               </div>
             </div>
           </div>
+
+          {error && (
+            <div className="px-6 py-4 bg-red-50 border-b border-red-200">
+              <p className="text-red-600">{error}</p>
+            </div>
+          )}
 
           <form onSubmit={handleSubmit} className="p-6 space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -229,11 +247,43 @@ const ReviewEditor: React.FC = () => {
               <div className="space-y-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700">내용</label>
-                  <ReactQuill
-                    value={formData.content}
-                    onChange={(content) => setFormData({ ...formData, content })}
-                    className="h-64 mb-12"
-                  />
+                  <div className="mt-2 mb-4">
+                    <div className="flex items-center space-x-4">
+                      <label className="inline-flex items-center">
+                        <input
+                          type="radio"
+                          checked={!formData.use_rich_text}
+                          onChange={() => setFormData({ ...formData, use_rich_text: false })}
+                          className="form-radio text-blue-600"
+                        />
+                        <span className="ml-2">일반 텍스트</span>
+                      </label>
+                      <label className="inline-flex items-center">
+                        <input
+                          type="radio"
+                          checked={formData.use_rich_text}
+                          onChange={() => setFormData({ ...formData, use_rich_text: true })}
+                          className="form-radio text-blue-600"
+                        />
+                        <span className="ml-2">리치 텍스트</span>
+                      </label>
+                    </div>
+                  </div>
+                  {formData.use_rich_text ? (
+                    <ReactQuill
+                      value={formData.content}
+                      onChange={(content) => setFormData({ ...formData, content })}
+                      className="h-64 mb-12"
+                    />
+                  ) : (
+                    <textarea
+                      value={formData.content}
+                      onChange={(e) => setFormData({ ...formData, content: e.target.value })}
+                      rows={10}
+                      className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+                      placeholder="리뷰 내용을 입력하세요..."
+                    />
+                  )}
                 </div>
 
                 <div>

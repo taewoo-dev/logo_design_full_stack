@@ -9,8 +9,9 @@ import { FaHandPaper, FaDollarSign, FaTicketAlt, FaInfinity, FaChevronDown } fro
 import PortfolioLightbox from '../../components/media/PortfolioLightbox';
 import { useNavigate } from 'react-router-dom';
 import { Portfolio } from '../../types';
-import Button from '../../components/ui/button';
 import { getPortfolios } from '../../api/portfolio';
+import { getReviews } from '../../api/review';
+import type { Review } from '../../types/review';
 import Header from '../../components/layout/Header';
 import Footer from '../../components/layout/Footer';
 
@@ -20,6 +21,7 @@ const HomePage = () => {
   const [selectedPortfolio, setSelectedPortfolio] = useState<Portfolio | null>(null);
   const [portfolios, setPortfolios] = useState<Portfolio[]>([]);
   const [loading, setLoading] = useState(true);
+  const [topReviews, setTopReviews] = useState<Review[]>([]);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -40,51 +42,27 @@ const HomePage = () => {
       }
     };
 
+    const fetchTopReviews = async () => {
+      try {
+        const reviews = await getReviews({ 
+          sort_by: 'rating',
+          sort_order: 'desc',
+          is_visible: true,
+          size: 5
+        });
+        setTopReviews(reviews);
+      } catch (error) {
+        console.error('Failed to fetch top reviews:', error);
+      }
+    };
+
     fetchPortfolios();
+    fetchTopReviews();
   }, []);
 
   const toggleQuestion = (id: number) => {
     setOpenQuestion(openQuestion === id ? null : id);
   };
-
-  const reviews = [
-    {
-      id: 1,
-      name: "김서연",
-      company: "테크스타트업 A",
-      rating: 4.5,
-      content: "우리 회사의 아이덴티티를 정확하게 파악하여 현대적이고 세련된 로고를 만들어주셨어요. 수정 요청에도 빠르게 대응해주셔서 매우 만족스러웠습니다.",
-      logoUrl: "/images/reviews/logo1.jpg",
-      date: "2023-10-01"
-    },
-    {
-      id: 2,
-      name: "박준호",
-      company: "카페 B",
-      rating: 5,
-      content: "친환경적인 카페의 컨셉을 잘 살린 로고를 디자인해주셨습니다. 고객들의 반응도 매우 좋아요!",
-      logoUrl: "/images/reviews/logo2.jpg",
-      date: "2023-10-02"
-    },
-    {
-      id: 3,
-      name: "이민지",
-      company: "뷰티 브랜드 C",
-      rating: 5,
-      content: "여러 번의 수정 과정을 거쳐 완벽한 로고가 탄생했습니다. 전문적인 상담과 빠른 피드백에 특히 감사드립니다.",
-      logoUrl: "/images/reviews/logo3.jpg",
-      date: "2023-10-03"
-    },
-    {
-      id: 4,
-      name: "최현우",
-      company: "푸드 스타트업 D",
-      rating: 5,
-      content: "음식 배달 서비스의 특징을 잘 살린 로고 디자인이 매우 마음에 듭니다. 브랜딩 초기 단계에서 큰 도움이 되었어요.",
-      logoUrl: "/images/reviews/logo4.jpg",
-      date: "2023-10-04"
-    }
-  ];
 
   const sliderSettings = {
     dots: true,
@@ -449,31 +427,41 @@ const HomePage = () => {
             </motion.div>
 
             <div className="grid grid-cols-1 gap-8">
-              {reviews.map((review, index) => (
-                <motion.div
-                  key={review.id}
-                  className="bg-white rounded-2xl p-8 shadow-lg"
-                  initial={{ opacity: 0, y: 20 }}
-                  whileInView={{ opacity: 1, y: 0 }}
-                  transition={{ delay: index * 0.1 }}
-                >
-                  <div className="flex items-start gap-4">
-                    <img 
-                      src={review.logoUrl} 
-                      alt={review.name}
-                      className="w-12 h-12 rounded-full object-cover"
-                    />
-                    <div>
-                      <div className="flex items-center">
-                        <span className="text-yellow-400 text-xl font-bold">★</span>
-                        <span className="ml-2 text-lg font-bold">{review.rating}</span>
-                        <span className="ml-2 text-sm text-gray-600">{review.date}</span>
+              {loading ? (
+                <div className="text-center py-8">로딩 중...</div>
+              ) : (
+                topReviews.map((review, index) => (
+                  <motion.div
+                    key={review.id}
+                    className="bg-white rounded-2xl p-8 shadow-lg"
+                    initial={{ opacity: 0, y: 20 }}
+                    whileInView={{ opacity: 1, y: 0 }}
+                    transition={{ delay: index * 0.1 }}
+                  >
+                    <div className="flex items-start gap-4">
+                      {review.images && review.images.length > 0 ? (
+                        <img 
+                          src={review.images[0]} 
+                          alt={review.name}
+                          className="w-12 h-12 rounded-full object-cover"
+                        />
+                      ) : (
+                        <div className="w-12 h-12 rounded-full bg-gray-200 flex items-center justify-center">
+                          <span className="text-gray-400">No image</span>
+                        </div>
+                      )}
+                      <div>
+                        <div className="flex items-center">
+                          <span className="text-yellow-400 text-xl font-bold">★</span>
+                          <span className="ml-2 text-lg font-bold">{review.rating}</span>
+                          <span className="ml-2 text-sm text-gray-600">{new Date(review.created_at).toLocaleDateString()}</span>
+                        </div>
+                        <p className="mt-2 text-gray-700">{review.content}</p>
                       </div>
-                      <p className="mt-2 text-gray-700">{review.content}</p>
                     </div>
-                  </div>
-                </motion.div>
-              ))}
+                  </motion.div>
+                ))
+              )}
             </div>
 
             <motion.div 

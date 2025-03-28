@@ -3,13 +3,18 @@ import { motion } from 'framer-motion';
 import { FaStar } from 'react-icons/fa';
 import Header from '../../components/layout/Header';
 import Footer from '../../components/layout/Footer';
-import { reviews } from '../../mocks/reviewsData';
+import { getReviews, getReviewStats } from '../../api/review';
+import type { Review } from '../../types/review';
 
 const ReviewsPage = () => {
   const [currentPage, setCurrentPage] = useState(1);
+  const [reviews, setReviews] = useState<Review[]>([]);
+  const [stats, setStats] = useState<{ total_reviews: number; average_rating: number }>({
+    total_reviews: 0,
+    average_rating: 0,
+  });
   const reviewsPerPage = 5;
   
-  const averageRating = reviews.reduce((acc, review) => acc + review.rating, 0) / reviews.length;
   const totalPages = Math.ceil(reviews.length / reviewsPerPage);
   
   // 현재 페이지의 리뷰만 가져오기
@@ -18,10 +23,10 @@ const ReviewsPage = () => {
     currentPage * reviewsPerPage
   );
 
-  // ID 마스킹 함수
-  const maskId = (id: string) => {
-    if (id.length <= 2) return id + '***';
-    return id.slice(0, 2) + '*'.repeat(id.length - 2);
+  // 이름 마스킹 함수
+  const maskName = (name: string) => {
+    if (name.length <= 2) return name + '***';
+    return name.slice(0, 2) + '*'.repeat(name.length - 2);
   };
 
   // 페이지 변경 시 스크롤 상단으로 이동하는 함수
@@ -31,9 +36,23 @@ const ReviewsPage = () => {
   };
 
   useEffect(() => {
+    const fetchData = async () => {
+      try {
+        // 공개된 리뷰만 가져오기
+        const reviewsData = await getReviews({ is_visible: true });
+        setReviews(reviewsData);
+        
+        // 리뷰 통계 가져오기
+        const statsData = await getReviewStats();
+        setStats(statsData);
+      } catch (error) {
+        console.error('리뷰 데이터 로딩 실패:', error);
+      }
+    };
+
+    fetchData();
     window.scrollTo(0, 0);
   }, []);
-
 
   return (
     <>
@@ -70,7 +89,7 @@ const ReviewsPage = () => {
                 <div className="flex items-center justify-center md:justify-start gap-4">
                   <div>
                     <h2 className="text-7xl font-bold bg-gradient-to-r from-green-800 to-green-600 text-transparent bg-clip-text">
-                      {reviews.length}
+                      {stats.total_reviews}
                     </h2>
                     <p className="text-gray-500 mt-2">등록된 리뷰</p>
                   </div>
@@ -96,7 +115,7 @@ const ReviewsPage = () => {
                 <div className="flex items-center justify-center md:justify-start">
                   <div className="mr-6">
                     <h2 className="text-7xl font-bold bg-gradient-to-r from-green-800 to-green-600 text-transparent bg-clip-text">
-                      {averageRating.toFixed(1)}
+                      {stats.average_rating.toFixed(1)}
                     </h2>
                     <p className="text-gray-500 mt-2">평균 평점</p>
                   </div>
@@ -105,7 +124,7 @@ const ReviewsPage = () => {
                       {Array.from({ length: 5 }).map((_, i) => (
                         <FaStar 
                           key={i}
-                          className={i < Math.floor(averageRating) 
+                          className={i < Math.floor(stats.average_rating) 
                             ? "text-yellow-400" 
                             : "text-gray-200"}
                           size={28}
@@ -162,9 +181,9 @@ const ReviewsPage = () => {
                     ))}
                   </div>
                   <span className="text-gray-500">|</span>
-                  <span className="text-gray-600">{review.date}</span>
+                  <span className="text-gray-600">{new Date(review.created_at).toLocaleDateString()}</span>
                   <span className="text-gray-500">|</span>
-                  <span className="text-gray-600">{maskId(review.name)}</span>
+                  <span className="text-gray-600">{maskName(review.name)}</span>
                 </div>
 
                 {/* 리뷰 내용 */}
@@ -190,11 +209,11 @@ const ReviewsPage = () => {
                     <div className="flex gap-6">
                       <div className="text-right">
                         <p className="text-sm text-gray-500">주문 금액</p>
-                        <p className="font-medium">5만원 미만</p>
+                        <p className="font-medium">{review.order_amount}</p>
                       </div>
                       <div className="text-right">
                         <p className="text-sm text-gray-500">작업 기간</p>
-                        <p className="font-medium">{review.orderType.includes('심플') ? '7일' : '13일'}</p>
+                        <p className="font-medium">{review.working_days}일</p>
                       </div>
                     </div>
                   </div>

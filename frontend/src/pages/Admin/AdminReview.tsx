@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button, Select } from '../../components/common';
 import { getReviews, deleteReview } from '../../api/review';
@@ -13,11 +13,7 @@ const AdminReview: React.FC = () => {
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
   const [isVisible, setIsVisible] = useState<boolean | undefined>(undefined);
 
-  useEffect(() => {
-    fetchReviews();
-  }, [sortBy, sortOrder, isVisible]);
-
-  const fetchReviews = async () => {
+  const fetchReviews = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
@@ -39,7 +35,11 @@ const AdminReview: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [sortBy, sortOrder, isVisible]);
+
+  useEffect(() => {
+    fetchReviews();
+  }, [fetchReviews]);
 
   const handleDelete = async (id: string) => {
     if (!window.confirm('정말로 이 리뷰를 삭제하시겠습니까?')) {
