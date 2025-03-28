@@ -64,16 +64,11 @@ async def api_create_review(
     order_amount: Annotated[str, Form()],
     working_days: Annotated[int, Form()],
     is_visible: Annotated[bool, Form()] = True,
-    images: list[UploadFile] = File(None),
+    images: list[UploadFile] = File(...),
     session: AsyncSession = Depends(get_db),
 ) -> ReviewResponse:
     """새로운 리뷰를 생성합니다."""
-    # TODO: 이미지 업로드 처리
-    image_urls = None
-    if images:
-        image_urls = ",".join([f"/uploads/{img.filename}" for img in images])
-
-    review = await service_create_review(
+    return await service_create_review(
         session=session,
         name=name,
         rating=rating,
@@ -82,9 +77,8 @@ async def api_create_review(
         order_amount=order_amount,
         working_days=working_days,
         is_visible=is_visible,
-        image_urls=image_urls,
+        images=images,
     )
-    return review
 
 
 @router.put("/{uuid}", response_model=ReviewResponse)

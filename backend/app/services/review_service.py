@@ -1,8 +1,9 @@
 from typing import Optional
 
-from fastapi import HTTPException, UploadFile, status
+from fastapi import HTTPException, UploadFile, status, File
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.utils.file import save_upload_file
 from app.dtos.common.paginated_response import PaginatedResponse
 from app.dtos.review import ReviewStatsResponse
 from app.dtos.review.review_query import ReviewQueryParams
@@ -59,9 +60,11 @@ async def service_create_review(
     order_amount: str,
     working_days: int,
     is_visible: bool = True,
-    image_urls: str | None = None,
+    images: list[UploadFile] = File(...),
 ) -> ReviewResponse:
     """새로운 리뷰를 생성합니다."""
+    image_urls = ",".join([await save_upload_file(image, subdir="reviews") for image in images])
+
     review = await Review.create_one(
         session=session,
         name=name,
@@ -97,7 +100,7 @@ async def service_update_review(
             detail="Review not found",
         )
 
-    image_urls = ",".join(f"/uploads/{img.filename}" for img in images) if images else None
+    image_urls = ",".join([await save_upload_file(image, subdir="reviews") for image in images]) if images else None
 
     await review.update(
         session=session,
