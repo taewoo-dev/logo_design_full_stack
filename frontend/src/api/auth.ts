@@ -1,14 +1,12 @@
-import axios from 'axios';
+import client from './client';
 import { LoginRequest, TokenResponse } from '../types/auth';
 
-const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000';
-
 export const login = async (data: LoginRequest): Promise<TokenResponse> => {
-  const response = await axios.post<TokenResponse>(`${API_URL}/auth/login`, data);
+  const response = await client.post<TokenResponse>('/api/v1/auth/login', data);
   return response.data;
 };
 
 export const refreshToken = async (refresh_token: string): Promise<TokenResponse> => {
-  const response = await axios.post<TokenResponse>(`${API_URL}/auth/refresh`, { refresh_token });
+  const response = await client.post<TokenResponse>('/api/v1/auth/refresh', { refresh_token });
   return response.data;
 }; 

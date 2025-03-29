@@ -44,13 +44,13 @@ const HomePage = () => {
 
     const fetchTopReviews = async () => {
       try {
-        const reviews = await getReviews({ 
+        const reviews = await getReviews({
           sort_by: 'rating',
           sort_order: 'desc',
           is_visible: true,
           size: 5
         });
-        setTopReviews(reviews);
+        setTopReviews(reviews.items);
       } catch (error) {
         console.error('Failed to fetch top reviews:', error);
       }

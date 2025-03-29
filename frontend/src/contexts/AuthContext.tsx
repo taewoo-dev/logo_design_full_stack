@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { login as loginApi, refreshToken as refreshTokenApi } from '../api/auth';
-import { LoginRequest, TokenResponse, User } from '../types/auth';
+import { LoginRequest, User } from '../types/auth';
 
 interface AuthContextType {
   isAuthenticated: boolean;

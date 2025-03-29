@@ -1,13 +1,6 @@
-import axios from 'axios';
+import client from './client';
 import type { Review, ReviewCreateRequest, ReviewUpdateRequest, ReviewStats } from '../types/review';
-
-interface PaginatedResponse<T> {
-  items: T[];
-  total: number;
-  page: number;
-  size: number;
-  pages: number;
-}
+import type { PaginatedResponse } from '../types/pagination';
 
 interface ReviewQueryParams {
   page?: number;
@@ -17,60 +10,31 @@ interface ReviewQueryParams {
   is_visible?: boolean;
 }
 
-const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000';
-
-// 인증 토큰을 가져오는 함수
-const getAuthToken = () => {
-  return localStorage.getItem('accessToken');
-};
-
-// axios 인스턴스 생성
-const api = axios.create({
-  baseURL: API_URL,
-});
-
-// 요청 인터셉터 추가
-api.interceptors.request.use((config) => {
-  const token = getAuthToken();
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
-  }
-  return config;
-});
-
-export const getReviews = async (params?: ReviewQueryParams): Promise<Review[]> => {
-  const response = await api.get('/api/v1/reviews', { params });
-  return response.data.items;
+export const getReviews = async (params: ReviewQueryParams = {}): Promise<PaginatedResponse<Review>> => {
+  const response = await client.get<PaginatedResponse<Review>>('/api/v1/reviews', { params });
+  return response.data;
 };
 
 export const getReview = async (id: string): Promise<Review> => {
-  const response = await api.get(`/api/v1/reviews/${id}`);
+  const response = await client.get<Review>(`/api/v1/reviews/${id}`);
   return response.data;
 };
 
-export const getReviewStats = async (): Promise<ReviewStats> => {
-  const response = await api.get('/api/v1/reviews/stats');
+export const createReview = async (data: ReviewCreateRequest): Promise<Review> => {
+  const response = await client.post<Review>('/api/v1/reviews', data);
   return response.data;
 };
 
-export const createReview = async (formData: FormData): Promise<Review> => {
-  const response = await api.post('/api/v1/reviews', formData, {
-    headers: {
-      'Content-Type': 'multipart/form-data',
-    },
-  });
-  return response.data;
-};
-
-export const updateReview = async (id: string, formData: FormData): Promise<Review> => {
-  const response = await api.put(`/api/v1/reviews/${id}`, formData, {
-    headers: {
-      'Content-Type': 'multipart/form-data',
-    },
-  });
+export const updateReview = async (id: string, data: ReviewUpdateRequest): Promise<Review> => {
+  const response = await client.put<Review>(`/api/v1/reviews/${id}`, data);
   return response.data;
 };
 
 export const deleteReview = async (id: string): Promise<void> => {
-  await api.delete(`/api/v1/reviews/${id}`);
+  await client.delete(`/api/v1/reviews/${id}`);
+};
+
+export const getReviewStats = async (): Promise<ReviewStats> => {
+  const response = await client.get<ReviewStats>('/api/v1/reviews/stats');
+  return response.data;
 }; 

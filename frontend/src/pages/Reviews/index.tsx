@@ -40,7 +40,7 @@ const ReviewsPage = () => {
       try {
         // 공개된 리뷰만 가져오기
         const reviewsData = await getReviews({ is_visible: true });
-        setReviews(reviewsData);
+        setReviews(reviewsData.items);
         
         // 리뷰 통계 가져오기
         const statsData = await getReviewStats();

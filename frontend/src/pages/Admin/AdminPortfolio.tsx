@@ -1,8 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { Button, Input, Select, Textarea } from '../../components/common';
+import { Button } from '../../components/common';
 import { getPortfolios, createPortfolio, updatePortfolio, deletePortfolio } from '../../api/portfolio';
-import { Portfolio, PortfolioCategory, PortfolioVisibility, PaginatedResponse, Option } from '../../types';
+import { Portfolio, PortfolioCategory, PortfolioVisibility, Option } from '../../types';
 import { getFullImageUrl } from '../../utils/image';
 
 const categoryOptions: Option[] = [
@@ -20,7 +19,6 @@ const visibilityOptions: Option[] = [
 ];
 
 const AdminPortfolioPage: React.FC = () => {
-  const navigate = useNavigate();
   const [portfolios, setPortfolios] = useState<Portfolio[]>([]);
   const [loading, setLoading] = useState(true);
   const [deletingId, setDeletingId] = useState<number | null>(null);
